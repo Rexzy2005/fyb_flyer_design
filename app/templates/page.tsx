@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Lock, TrendingUp, Image as ImageIcon } from 'lucide-react'
+import { Search, Lock, TrendingUp, Image as ImageIcon, ArrowRight } from 'lucide-react'
 import type { TemplateCategory } from '@/lib/types'
 
 export default function TemplatesPage() {
@@ -26,7 +26,8 @@ export default function TemplatesPage() {
     searchTemplates(searchQuery)
   }, [searchQuery, searchTemplates])
 
-  const handleTemplateClick = (template: any) => {
+  const handleUseTemplate = (e: React.MouseEvent, template: any) => {
+    e.stopPropagation() // Prevent card click
     if (!isAuthenticated) {
       router.push('/auth/login')
       return
@@ -100,8 +101,7 @@ export default function TemplatesPage() {
             {popularTemplates.map((template) => (
               <Card
                 key={template.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow group"
-                onClick={() => handleTemplateClick(template)}
+                className="hover:shadow-lg transition-shadow group flex flex-col"
               >
                 <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg mb-4 overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -121,12 +121,22 @@ export default function TemplatesPage() {
                     </div>
                   )}
                 </div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                  {template.name}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {template.usageCount} uses
-                </p>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                    {template.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {template.usageCount} uses
+                  </p>
+                </div>
+                <Button
+                  onClick={(e) => handleUseTemplate(e, template)}
+                  className="w-full"
+                  size="sm"
+                >
+                  Use Template
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
               </Card>
             ))}
           </div>
@@ -147,8 +157,7 @@ export default function TemplatesPage() {
             {filteredTemplates.map((template) => (
               <Card
                 key={template.id}
-                className="cursor-pointer hover:shadow-lg transition-shadow group"
-                onClick={() => handleTemplateClick(template)}
+                className="hover:shadow-lg transition-shadow group flex flex-col"
               >
                 <div className="relative aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg mb-4 overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -168,17 +177,27 @@ export default function TemplatesPage() {
                     </div>
                   )}
                 </div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                  {template.name}
-                </h3>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {template.usageCount} uses
-                  </p>
-                  <Badge variant="info">
-                    {template.category === 'fyb' ? 'FYB' : 'Sign-out'}
-                  </Badge>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                    {template.name}
+                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {template.usageCount} uses
+                    </p>
+                    <Badge variant="info">
+                      {template.category === 'fyb' ? 'FYB' : 'Sign-out'}
+                    </Badge>
+                  </div>
                 </div>
+                <Button
+                  onClick={(e) => handleUseTemplate(e, template)}
+                  className="w-full"
+                  size="sm"
+                >
+                  Use Template
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
               </Card>
             ))}
           </div>

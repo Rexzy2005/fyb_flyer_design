@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { useAuthStore } from '@/store/auth-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Card } from '@/components/ui/card'
 import { validateEmail, validatePassword } from '@/lib/utils'
+import { Mail } from 'lucide-react'
 
 const departments = [
   'Computer Science',
@@ -20,7 +22,7 @@ const departments = [
 
 export default function SignupPage() {
   const router = useRouter()
-  const { signup, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -28,6 +30,7 @@ export default function SignupPage() {
   const [department, setDepartment] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showVerificationMessage, setShowVerificationMessage] = useState(false)
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -60,13 +63,63 @@ export default function SignupPage() {
     }
 
     setIsLoading(true)
-    const result = await signup(email, username, password, department || undefined)
-    setIsLoading(false)
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+          department: department || undefined,
+        }),
+      })
 
-    if (result.success) {
-      router.push('/dashboard')
-    } else {
-      setError(result.error || 'Signup failed')
+      const result = await response.json()
+
+      if (!response.ok) {
+        // Handle HTTP errors
+        setError(result.error || `Registration failed (${response.status})`)
+        return
+      }
+
+      if (result.success) {
+        // Verify user data was returned
+        if (!result.user || !result.user.id) {
+          setError('Registration completed but user data is missing. Please contact support.')
+          return
+        }
+
+        // Show verification message
+        setShowVerificationMessage(true)
+        
+        // Update auth store with user data from database
+        useAuthStore.setState({
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            username: result.user.username,
+            role: result.user.role as any,
+            department: result.user.department,
+            emailVerified: result.user.isVerified,
+            createdAt: new Date().toISOString(),
+          },
+          isAuthenticated: true,
+        })
+
+        console.log('User registered successfully and saved to database:', {
+          id: result.user.id,
+          email: result.user.email,
+          username: result.user.username,
+        })
+      } else {
+        setError(result.error || 'Signup failed')
+      }
+    } catch (err: any) {
+      console.error('Registration error:', err)
+      setError(err.message || 'Network error. Please check your connection and try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -100,18 +153,16 @@ export default function SignupPage() {
               required
             />
 
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
               required
             />
 
-            <Input
+            <PasswordInput
               label="Confirm Password"
-              type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your password"
@@ -142,8 +193,27 @@ export default function SignupPage() {
               </div>
             )}
 
-            <Button type="submit" className="w-full" isLoading={isLoading}>
-              Create Account
+            {showVerificationMessage && (
+              <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      Verification Email Sent!
+                    </h3>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                      We've sent a verification link to <strong>{email}</strong>. Please check your inbox and click the link to verify your account.
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      After verification, you'll be able to log in and access all features.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" isLoading={isLoading} disabled={showVerificationMessage}>
+              {showVerificationMessage ? 'Check Your Email' : 'Create Account'}
             </Button>
           </form>
 

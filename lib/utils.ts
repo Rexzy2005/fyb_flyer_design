@@ -1,5 +1,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { prisma } from './prisma'
+import crypto from 'crypto'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -37,3 +39,18 @@ export function validatePassword(password: string): boolean {
   return password.length >= 8
 }
 
+export async function generateEmailVerificationToken(userId: string): Promise<string> {
+  const token = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date()
+  expiresAt.setHours(expiresAt.getHours() + 24) // 24 hours expiry
+
+  await prisma.emailVerificationToken.create({
+    data: {
+      userId,
+      token,
+      expiresAt,
+    },
+  })
+
+  return token
+}

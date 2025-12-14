@@ -6,12 +6,13 @@ import Link from 'next/link'
 import { useAuthStore } from '@/store/auth-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Card } from '@/components/ui/card'
 import { validateEmail } from '@/lib/utils'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -38,13 +39,39 @@ export default function LoginPage() {
     }
 
     setIsLoading(true)
-    const result = await login(email, password)
-    setIsLoading(false)
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const result = await response.json()
 
-    if (result.success) {
-      router.push('/dashboard')
-    } else {
-      setError(result.error || 'Login failed')
+      if (result.success) {
+        if (!result.user.isVerified) {
+          setError('Please verify your email before logging in. Check your inbox for the verification link.')
+          return
+        }
+        // Update auth store with user data from API
+        const { updateUser } = useAuthStore.getState()
+        updateUser({
+          id: result.user.id,
+          email: result.user.email,
+          username: result.user.username,
+          role: result.user.role as any,
+          department: result.user.department,
+          emailVerified: result.user.isVerified,
+          createdAt: new Date().toISOString(),
+        })
+        useAuthStore.setState({ isAuthenticated: true, user: result.user as any })
+        router.push('/dashboard')
+      } else {
+        setError(result.error || 'Login failed')
+      }
+    } catch (err) {
+      setError('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -67,9 +94,8 @@ export default function LoginPage() {
               required
             />
 
-            <Input
+            <PasswordInput
               label="Password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"

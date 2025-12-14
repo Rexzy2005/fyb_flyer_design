@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  DEPARTMENT_ADMIN
+}
+
+enum TemplateCategory {
+  FYB
+  SIGNOUT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  username     String    @unique
+  passwordHash String    @map("password_hash")
+  isVerified   Boolean   @default(false) @map("is_verified")
+  role         Role      @default(STUDENT)
+  department   String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  downloads    Download[]
+  payments     Payment[]
+  emailTokens  EmailVerificationToken[]
+
+  @@map("users")
+}
+
+model EmailVerificationToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
+}
+
+model Template {
+  id              String           @id @default(uuid())
+  name            String
+  category        TemplateCategory
+  isLocked        Boolean          @default(false) @map("is_locked")
+  lockedDepartment String?         @map("locked_department")
+  usageCount      Int              @default(0) @map("usage_count")
+  previewImage    String           @map("preview_image")
+  canvasConfig    Json?            @map("canvas_config")
+  fields          Json?
+  status          String            @default("public")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  downloads       Download[]
+  payments        Payment[]
+  departmentAccess DepartmentAccess[]
+
+  @@map("templates")
+}
+
+model Download {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  templateId     String    @map("template_id")
+  downloadCount  Int       @default(0) @map("download_count")
+  freeEditUsed   Boolean   @default(false) @map("free_edit_used")
+  lastDownloadAt DateTime? @map("last_download_at")
+  downloadUrl    String?   @map("download_url")
+  emailSent      Boolean   @default(false) @map("email_sent")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template       Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, templateId])
+  @@map("downloads")
+}
+
+model Payment {
+  id         String        @id @default(uuid())
+  userId     String        @map("user_id")
+  templateId String        @map("template_id")
+  amount     Int
+  status     PaymentStatus @default(PENDING)
+  reference  String        @unique
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template   Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model DepartmentAccess {
+  id           String   @id @default(uuid())
+  templateId  String   @map("template_id")
+  department  String
+  accessCode  String   @map("access_code")
+  expiresAt   DateTime @map("expires_at")
+  usageLimit  Int      @map("usage_limit")
+  usedCount   Int      @default(0) @map("used_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, accessCode])
+  @@map("department_access")
+}
+

@@ -20,21 +20,19 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
 
       login: async (email: string, password: string) => {
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 800))
-
-        // Mock validation - in production, this would be an API call
+        // This is now handled by API call in login page
+        // Keep for backward compatibility with existing code
         const storedUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
         const user = storedUsers.find(
           (u: User) => u.email === email && localStorage.getItem(`password_${u.id}`) === password
         )
 
-        if (!user) {
-          return { success: false, error: 'Invalid email or password' }
+        if (user) {
+          set({ user, isAuthenticated: true })
+          return { success: true }
         }
 
-        set({ user, isAuthenticated: true })
-        return { success: true }
+        return { success: false, error: 'Invalid email or password' }
       },
 
       signup: async (email: string, username: string, password: string, department?: string) => {
