@@ -1,7 +1,8 @@
-import { prisma } from '@/lib/prisma'
+import { db, testDatabaseConnection } from '@/lib/db'
 import { hashPassword, verifyPassword } from '@/lib/auth'
 import { generateEmailVerificationToken } from '@/lib/utils'
-import type { User, Role } from '@prisma/client'
+import { users, emailVerificationTokens, type User, type Role } from '@/drizzle/schema'
+import { eq, or, and, desc } from 'drizzle-orm'
 
 export interface RegisterUserData {
   email: string
@@ -17,56 +18,81 @@ export interface LoginUserData {
 
 export class UserService {
   static async register(data: RegisterUserData): Promise<{ user: User; token: string }> {
-    // Check if user exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email: data.email }, { username: data.username }],
-      },
-    })
-
-    if (existingUser) {
-      if (existingUser.email === data.email) {
-        throw new Error('Email already registered')
-      }
-      if (existingUser.username === data.username) {
-        throw new Error('Username already taken')
-      }
+    // Test database connection first
+    const isConnected = await testDatabaseConnection()
+    if (!isConnected) {
+      throw new Error('Database connection failed. Please ensure your database is running. If using Render.com, check if the database is paused and resume it from the dashboard.')
     }
 
-    // Hash password
-    const passwordHash = await hashPassword(data.password)
+    try {
+      // Check if user exists
+      const existingUsers = await db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, data.email), eq(users.username, data.username)))
+        .limit(1)
 
-    // Create user in database
-    const user = await prisma.user.create({
-      data: {
-        email: data.email,
-        username: data.username,
-        passwordHash,
-        department: data.department,
-        role: 'STUDENT',
-        isVerified: false,
-      },
-    })
+      if (existingUsers.length > 0) {
+        const existingUser = existingUsers[0]
+        if (existingUser.email === data.email) {
+          throw new Error('Email already registered')
+        }
+        if (existingUser.username === data.username) {
+          throw new Error('Username already taken')
+        }
+      }
 
-    // Verify user was created in database
-    const verifyUser = await prisma.user.findUnique({
-      where: { id: user.id },
-    })
+      // Hash password
+      const passwordHash = await hashPassword(data.password)
 
-    if (!verifyUser) {
-      throw new Error('Failed to save user to database')
+      // Create user in database
+      const [user] = await db
+        .insert(users)
+        .values({
+          email: data.email,
+          username: data.username,
+          passwordHash,
+          department: data.department,
+          role: 'STUDENT',
+          isVerified: false,
+        })
+        .returning()
+
+      if (!user) {
+        throw new Error('Failed to save user to database')
+      }
+
+      // Verify user was created in database
+      const [verifyUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1)
+
+      if (!verifyUser) {
+        throw new Error('Failed to save user to database')
+      }
+
+      // Generate email verification token
+      const token = await generateEmailVerificationToken(user.id)
+
+      return { user: verifyUser, token }
+    } catch (error: any) {
+      // Handle database connection errors
+      if (error.code === 'P1001' || error.message?.includes("Can't reach database server")) {
+        throw new Error('Database connection failed. Please check if the database server is running.')
+      }
+      // Re-throw other errors
+      throw error
     }
-
-    // Generate email verification token
-    const token = await generateEmailVerificationToken(user.id)
-
-    return { user, token }
   }
 
   static async login(data: LoginUserData): Promise<User> {
-    const user = await prisma.user.findUnique({
-      where: { email: data.email },
-    })
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, data.email))
+      .limit(1)
 
     if (!user) {
       throw new Error('Invalid email or password')
@@ -84,51 +110,116 @@ export class UserService {
     return user
   }
 
-  static async verifyEmail(token: string): Promise<User> {
-    const emailToken = await prisma.emailVerificationToken.findUnique({
-      where: { token },
-      include: { user: true },
-    })
+  static async verifyEmail(otp: string, email: string): Promise<User> {
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
 
-    if (!emailToken) {
-      throw new Error('Invalid verification token')
+    if (!user) {
+      throw new Error('User not found')
     }
 
+    // Find verification token for this user
+    const tokens = await db
+      .select()
+      .from(emailVerificationTokens)
+      .where(and(
+        eq(emailVerificationTokens.userId, user.id),
+        eq(emailVerificationTokens.token, otp)
+      ))
+      .orderBy(desc(emailVerificationTokens.createdAt))
+      .limit(1)
+
+    if (tokens.length === 0) {
+      throw new Error('Invalid OTP code')
+    }
+
+    const emailToken = tokens[0]
+
     if (emailToken.expiresAt < new Date()) {
-      throw new Error('Verification token has expired')
+      throw new Error('OTP code has expired. Please request a new one.')
     }
 
     // Mark user as verified
-    const user = await prisma.user.update({
-      where: { id: emailToken.userId },
-      data: { isVerified: true },
-    })
+    const [verifiedUser] = await db
+      .update(users)
+      .set({ isVerified: true })
+      .where(eq(users.id, user.id))
+      .returning()
+
+    if (!verifiedUser) {
+      throw new Error('Failed to verify user')
+    }
 
     // Delete used token
-    await prisma.emailVerificationToken.delete({
-      where: { id: emailToken.id },
-    })
+    await db
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.id, emailToken.id))
 
-    return user
+    return verifiedUser
+  }
+
+  static async resendOTP(email: string): Promise<string> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    if (user.isVerified) {
+      throw new Error('Email is already verified')
+    }
+
+    // Delete old tokens for this user
+    await db
+      .delete(emailVerificationTokens)
+      .where(eq(emailVerificationTokens.userId, user.id))
+
+    // Generate new OTP
+    const { generateEmailVerificationToken } = await import('@/lib/utils')
+    const otp = await generateEmailVerificationToken(user.id)
+
+    return otp
   }
 
   static async findById(id: string): Promise<User | null> {
-    return prisma.user.findUnique({
-      where: { id },
-    })
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1)
+
+    return user || null
   }
 
   static async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({
-      where: { email },
-    })
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+
+    return user || null
   }
 
   static async updateRole(userId: string, role: Role): Promise<User> {
-    return prisma.user.update({
-      where: { id: userId },
-      data: { role },
-    })
+    const [updatedUser] = await db
+      .update(users)
+      .set({ role })
+      .where(eq(users.id, userId))
+      .returning()
+
+    if (!updatedUser) {
+      throw new Error('User not found')
+    }
+
+    return updatedUser
   }
 }
-

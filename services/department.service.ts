@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/prisma'
-import type { DepartmentAccess } from '@prisma/client'
+import { db } from '@/lib/db'
+import { departmentAccess, type DepartmentAccess } from '@/drizzle/schema'
+import { eq, and } from 'drizzle-orm'
 
 export interface CreateDepartmentAccessData {
   templateId: string
@@ -15,14 +16,16 @@ export class DepartmentService {
     department: string,
     accessCode: string
   ): Promise<DepartmentAccess> {
-    const access = await prisma.departmentAccess.findUnique({
-      where: {
-        templateId_accessCode: {
-          templateId,
-          accessCode,
-        },
-      },
-    })
+    const [access] = await db
+      .select()
+      .from(departmentAccess)
+      .where(
+        and(
+          eq(departmentAccess.templateId, templateId),
+          eq(departmentAccess.accessCode, accessCode)
+        )
+      )
+      .limit(1)
 
     if (!access) {
       throw new Error('Invalid access code')
@@ -44,32 +47,52 @@ export class DepartmentService {
   }
 
   static async useAccessCode(accessId: string): Promise<DepartmentAccess> {
-    return prisma.departmentAccess.update({
-      where: { id: accessId },
-      data: {
-        usedCount: {
-          increment: 1,
-        },
-      },
-    })
+    const [access] = await db
+      .select()
+      .from(departmentAccess)
+      .where(eq(departmentAccess.id, accessId))
+      .limit(1)
+
+    if (!access) {
+      throw new Error('Access code not found')
+    }
+
+    const [updated] = await db
+      .update(departmentAccess)
+      .set({ usedCount: access.usedCount + 1 })
+      .where(eq(departmentAccess.id, accessId))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Failed to update access code')
+    }
+
+    return updated
   }
 
   static async create(data: CreateDepartmentAccessData): Promise<DepartmentAccess> {
-    return prisma.departmentAccess.create({
-      data,
-    })
+    const [access] = await db
+      .insert(departmentAccess)
+      .values(data)
+      .returning()
+
+    if (!access) {
+      throw new Error('Failed to create department access')
+    }
+
+    return access
   }
 
   static async findByTemplate(templateId: string): Promise<DepartmentAccess[]> {
-    return prisma.departmentAccess.findMany({
-      where: { templateId },
-    })
+    return db
+      .select()
+      .from(departmentAccess)
+      .where(eq(departmentAccess.templateId, templateId))
   }
 
   static async delete(id: string): Promise<void> {
-    await prisma.departmentAccess.delete({
-      where: { id },
-    })
+    await db
+      .delete(departmentAccess)
+      .where(eq(departmentAccess.id, id))
   }
 }
-

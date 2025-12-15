@@ -23,6 +23,12 @@ export default function DashboardPage() {
       return
     }
 
+    // Check if email is verified
+    if (user && !user.emailVerified) {
+      router.push(`/auth/verify-otp?email=${encodeURIComponent(user.email)}`)
+      return
+    }
+
     if (user) {
       const userDownloads = getUserDownloads(user.id)
       setDownloads(userDownloads)

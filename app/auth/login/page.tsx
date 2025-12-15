@@ -49,21 +49,26 @@ export default function LoginPage() {
 
       if (result.success) {
         if (!result.user.isVerified) {
-          setError('Please verify your email before logging in. Check your inbox for the verification link.')
+          setError('Please verify your email before logging in. Check your inbox for the OTP code.')
+          // Redirect to OTP verification
+          setTimeout(() => {
+            router.push(`/auth/verify-otp?email=${encodeURIComponent(result.user.email)}`)
+          }, 2000)
           return
         }
         // Update auth store with user data from API
-        const { updateUser } = useAuthStore.getState()
-        updateUser({
-          id: result.user.id,
-          email: result.user.email,
-          username: result.user.username,
-          role: result.user.role as any,
-          department: result.user.department,
-          emailVerified: result.user.isVerified,
-          createdAt: new Date().toISOString(),
+        useAuthStore.setState({
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            username: result.user.username,
+            role: result.user.role as any,
+            department: result.user.department,
+            emailVerified: result.user.isVerified,
+            createdAt: new Date().toISOString(),
+          },
+          isAuthenticated: true,
         })
-        useAuthStore.setState({ isAuthenticated: true, user: result.user as any })
         router.push('/dashboard')
       } else {
         setError(result.error || 'Login failed')

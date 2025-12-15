@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { prisma } from './prisma'
+import { db } from './db'
+import { emailVerificationTokens } from '@/drizzle/schema'
 import crypto from 'crypto'
 
 export function cn(...inputs: ClassValue[]) {
@@ -40,17 +41,16 @@ export function validatePassword(password: string): boolean {
 }
 
 export async function generateEmailVerificationToken(userId: string): Promise<string> {
-  const token = crypto.randomBytes(32).toString('hex')
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString()
   const expiresAt = new Date()
-  expiresAt.setHours(expiresAt.getHours() + 24) // 24 hours expiry
+  expiresAt.setMinutes(expiresAt.getMinutes() + 10) // 10 minutes expiry for OTP
 
-  await prisma.emailVerificationToken.create({
-    data: {
-      userId,
-      token,
-      expiresAt,
-    },
+  await db.insert(emailVerificationTokens).values({
+    userId,
+    token: otp,
+    expiresAt,
   })
 
-  return token
+  return otp
 }

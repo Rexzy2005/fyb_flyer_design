@@ -1,8 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import { prisma } from './prisma'
+import { db } from './db'
+import { users, type User, type Role } from '@/drizzle/schema'
 import bcrypt from 'bcryptjs'
-import type { User, Role } from '@prisma/client'
+import { eq } from 'drizzle-orm'
 
 const secretKey = process.env.JWT_SECRET || 'fallback-secret-key-change-in-production'
 const key = new TextEncoder().encode(secretKey)
@@ -79,10 +80,11 @@ export async function getCurrentUser(): Promise<User | null> {
     return null
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-  })
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1)
 
-  return user
+  return user || null
 }
-

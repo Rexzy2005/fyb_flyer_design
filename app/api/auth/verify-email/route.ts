@@ -1,24 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { UserService } from '@/services/user.service'
-import { verifyEmailSchema } from '@/lib/validations'
 import { setSession } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const token = searchParams.get('token')
+    const body = await request.json()
+    const { otp, email } = body
 
-    if (!token) {
+    if (!otp || !email) {
       return NextResponse.json(
-        { success: false, error: 'Verification token is required' },
+        { success: false, error: 'OTP code and email are required' },
         { status: 400 }
       )
     }
 
-    // Verify email
-    const user = await UserService.verifyEmail(token)
+    // Verify OTP
+    const user = await UserService.verifyEmail(otp, email)
 
-    // Update session
+    // Set session after successful verification
     await setSession({
       userId: user.id,
       email: user.email,
@@ -43,4 +42,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-

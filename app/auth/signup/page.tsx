@@ -79,7 +79,13 @@ export default function SignupPage() {
 
       if (!response.ok) {
         // Handle HTTP errors
-        setError(result.error || `Registration failed (${response.status})`)
+        if (response.status === 503 || result.code === 'DATABASE_ERROR' || result.error?.includes('Database connection')) {
+          setError(
+            'Database connection failed. Your Render.com database may be paused. Please: 1) Go to dashboard.render.com, 2) Find your database, 3) Click "Resume" if paused, 4) Wait 2 minutes, then 5) Restart your dev server (Ctrl+C then npm run dev).'
+          )
+        } else {
+          setError(result.error || `Registration failed (${response.status})`)
+        }
         return
       }
 
@@ -90,10 +96,7 @@ export default function SignupPage() {
           return
         }
 
-        // Show verification message
-        setShowVerificationMessage(true)
-        
-        // Update auth store with user data from database
+        // Update auth store with user data from database (not verified yet)
         useAuthStore.setState({
           user: {
             id: result.user.id,
@@ -101,10 +104,10 @@ export default function SignupPage() {
             username: result.user.username,
             role: result.user.role as any,
             department: result.user.department,
-            emailVerified: result.user.isVerified,
+            emailVerified: false, // Not verified yet
             createdAt: new Date().toISOString(),
           },
-          isAuthenticated: true,
+          isAuthenticated: false, // Not authenticated until verified
         })
 
         console.log('User registered successfully and saved to database:', {
@@ -112,6 +115,14 @@ export default function SignupPage() {
           email: result.user.email,
           username: result.user.username,
         })
+
+        // In development, log OTP if email is not configured
+        if (result.developmentOTP) {
+          console.log(`\n🔑 DEVELOPMENT MODE - OTP CODE: ${result.developmentOTP}\n`)
+        }
+
+        // Redirect to OTP verification page
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(result.user.email)}`)
       } else {
         setError(result.error || 'Signup failed')
       }
@@ -157,8 +168,9 @@ export default function SignupPage() {
               label="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder="Enter your password"
               required
+              helperText="Must be at least 8 characters long"
             />
 
             <PasswordInput
@@ -167,6 +179,7 @@ export default function SignupPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your password"
               required
+              helperText="Re-enter your password to confirm it matches"
             />
 
             <div>

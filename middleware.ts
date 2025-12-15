@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
     '/api/auth/register',
     '/api/auth/login',
     '/api/auth/verify-email',
+    '/api/auth/resend-otp',
     '/api/templates',
   ]
 

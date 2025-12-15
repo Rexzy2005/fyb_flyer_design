@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/prisma'
-import type { Download } from '@prisma/client'
+import { db } from '@/lib/db'
+import { downloads, templates, type Download } from '@/drizzle/schema'
+import { eq, and, desc } from 'drizzle-orm'
 
 export interface CreateDownloadData {
   userId: string
@@ -12,42 +13,58 @@ export class DownloadService {
     userId: string,
     templateId: string
   ): Promise<Download | null> {
-    return prisma.download.findUnique({
-      where: {
-        userId_templateId: {
-          userId,
-          templateId,
-        },
-      },
-    })
+    const [download] = await db
+      .select()
+      .from(downloads)
+      .where(
+        and(
+          eq(downloads.userId, userId),
+          eq(downloads.templateId, templateId)
+        )
+      )
+      .limit(1)
+
+    return download || null
   }
 
   static async createOrUpdate(data: CreateDownloadData): Promise<Download> {
     const existing = await this.findByUserAndTemplate(data.userId, data.templateId)
 
     if (existing) {
-      return prisma.download.update({
-        where: { id: existing.id },
-        data: {
-          downloadCount: {
-            increment: 1,
-          },
+      const [updated] = await db
+        .update(downloads)
+        .set({
+          downloadCount: existing.downloadCount + 1,
           lastDownloadAt: new Date(),
           downloadUrl: data.downloadUrl,
           emailSent: false,
-        },
-      })
+        })
+        .where(eq(downloads.id, existing.id))
+        .returning()
+
+      if (!updated) {
+        throw new Error('Failed to update download')
+      }
+
+      return updated
     }
 
-    return prisma.download.create({
-      data: {
+    const [newDownload] = await db
+      .insert(downloads)
+      .values({
         userId: data.userId,
         templateId: data.templateId,
         downloadUrl: data.downloadUrl,
         downloadCount: 1,
         lastDownloadAt: new Date(),
-      },
-    })
+      })
+      .returning()
+
+    if (!newDownload) {
+      throw new Error('Failed to create download')
+    }
+
+    return newDownload
   }
 
   static async useFreeEdit(userId: string, templateId: string): Promise<Download> {
@@ -61,33 +78,43 @@ export class DownloadService {
       throw new Error('Free edit already used')
     }
 
-    return prisma.download.update({
-      where: { id: download.id },
-      data: {
+    const [updated] = await db
+      .update(downloads)
+      .set({
         freeEditUsed: true,
-        downloadCount: {
-          increment: 1,
-        },
+        downloadCount: download.downloadCount + 1,
         lastDownloadAt: new Date(),
-      },
-    })
+      })
+      .where(eq(downloads.id, download.id))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Failed to update download')
+    }
+
+    return updated
   }
 
   static async markEmailSent(downloadId: string): Promise<Download> {
-    return prisma.download.update({
-      where: { id: downloadId },
-      data: { emailSent: true },
-    })
+    const [updated] = await db
+      .update(downloads)
+      .set({ emailSent: true })
+      .where(eq(downloads.id, downloadId))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Download not found')
+    }
+
+    return updated
   }
 
   static async getUserDownloads(userId: string): Promise<Download[]> {
-    return prisma.download.findMany({
-      where: { userId },
-      include: {
-        template: true,
-      },
-      orderBy: { lastDownloadAt: 'desc' },
-    })
+    return db
+      .select()
+      .from(downloads)
+      .where(eq(downloads.userId, userId))
+      .orderBy(desc(downloads.lastDownloadAt))
   }
 
   static async canDownloadFree(userId: string, templateId: string): Promise<boolean> {
@@ -108,4 +135,3 @@ export class DownloadService {
     return !download || download.freeEditUsed
   }
 }
-

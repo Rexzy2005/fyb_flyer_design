@@ -1,9 +1,9 @@
 interface VerifyEmailProps {
   username: string
-  verificationUrl: string
+  otp: string
 }
 
-export function renderEmailVerification({ username, verificationUrl }: VerifyEmailProps): string {
+export function renderEmailVerification({ username, otp }: VerifyEmailProps): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -33,24 +33,25 @@ export function renderEmailVerification({ username, verificationUrl }: VerifyEma
               <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #374151;">Hi ${username},</p>
               
               <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #374151;">
-                Thank you for joining FYB University! We're excited to have you on board. To get started, please verify your email address by clicking the button below.
+                Thank you for joining FYB University! We're excited to have you on board. To get started, please verify your email address using the OTP code below.
               </p>
               
-              <div style="text-align: center; margin: 40px 0;">
-                <a href="${verificationUrl}" style="display: inline-block; padding: 16px 32px; background-color: #0ea5e9; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: background-color 0.3s;">
-                  Verify Email Address
-                </a>
+              <div style="text-align: center; margin: 40px 0; padding: 30px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; border: 2px dashed #0ea5e9;">
+                <p style="margin: 0 0 15px; font-size: 14px; color: #374151; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  Your Verification Code
+                </p>
+                <div style="display: inline-block; padding: 20px 40px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                  <p style="margin: 0; font-size: 48px; font-weight: 700; color: #0ea5e9; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                    ${otp}
+                  </p>
+                </div>
+                <p style="margin: 20px 0 0; font-size: 12px; color: #6b7280;">
+                  Enter this code on the verification page to complete your registration
+                </p>
               </div>
               
               <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-                If the button doesn't work, copy and paste this link into your browser:
-              </p>
-              <p style="margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: #9ca3af; word-break: break-all;">
-                ${verificationUrl}
-              </p>
-              
-              <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-                This verification link will expire in 24 hours. If you didn't create an account with FYB University, please ignore this email.
+                <strong>Important:</strong> This OTP code will expire in 10 minutes. If you didn't create an account with FYB University, please ignore this email.
               </p>
             </td>
           </tr>

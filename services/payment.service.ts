@@ -1,6 +1,7 @@
-import { prisma } from '@/lib/prisma'
+import { db } from '@/lib/db'
+import { payments, users, templates, type Payment, type PaymentStatus } from '@/drizzle/schema'
 import { initiatePayment, verifyPayment } from '@/lib/payment'
-import type { Payment, PaymentStatus } from '@prisma/client'
+import { eq, desc } from 'drizzle-orm'
 
 export interface CreatePaymentData {
   userId: string
@@ -18,15 +19,20 @@ export class PaymentService {
     })
 
     // Create payment record
-    const payment = await prisma.payment.create({
-      data: {
+    const [payment] = await db
+      .insert(payments)
+      .values({
         userId: data.userId,
         templateId: data.templateId,
         amount: data.amount,
         reference: paymentResponse.reference,
         status: 'PENDING',
-      },
-    })
+      })
+      .returning()
+
+    if (!payment) {
+      throw new Error('Failed to create payment')
+    }
 
     return { payment, reference: paymentResponse.reference }
   }
@@ -35,9 +41,11 @@ export class PaymentService {
     // Verify payment (simulated)
     const verification = await verifyPayment(reference)
 
-    const payment = await prisma.payment.findUnique({
-      where: { reference },
-    })
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.reference, reference))
+      .limit(1)
 
     if (!payment) {
       throw new Error('Payment not found')
@@ -46,30 +54,34 @@ export class PaymentService {
     // Update payment status
     const status: PaymentStatus = verification.status === 'success' ? 'COMPLETED' : 'FAILED'
 
-    return prisma.payment.update({
-      where: { id: payment.id },
-      data: { status },
-    })
+    const [updated] = await db
+      .update(payments)
+      .set({ status })
+      .where(eq(payments.id, payment.id))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Failed to update payment')
+    }
+
+    return updated
   }
 
   static async findByReference(reference: string): Promise<Payment | null> {
-    return prisma.payment.findUnique({
-      where: { reference },
-      include: {
-        user: true,
-        template: true,
-      },
-    })
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.reference, reference))
+      .limit(1)
+
+    return payment || null
   }
 
   static async findByUser(userId: string): Promise<Payment[]> {
-    return prisma.payment.findMany({
-      where: { userId },
-      include: {
-        template: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+    return db
+      .select()
+      .from(payments)
+      .where(eq(payments.userId, userId))
+      .orderBy(desc(payments.createdAt))
   }
 }
-

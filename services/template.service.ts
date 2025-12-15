@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/prisma'
-import type { Template, TemplateCategory } from '@prisma/client'
+import { db } from '@/lib/db'
+import { templates, departmentAccess, type Template, type TemplateCategory } from '@/drizzle/schema'
+import { eq, or, and, desc } from 'drizzle-orm'
 
 export interface CreateTemplateData {
   name: string
@@ -17,41 +18,49 @@ export class TemplateService {
     isLocked?: boolean
     department?: string
   }): Promise<Template[]> {
-    const where: any = {}
+    const conditions = []
 
     if (filters?.category) {
-      where.category = filters.category
+      conditions.push(eq(templates.category, filters.category))
     }
 
     if (filters?.isLocked !== undefined) {
-      where.isLocked = filters.isLocked
+      conditions.push(eq(templates.isLocked, filters.isLocked))
     }
 
     if (filters?.department) {
-      where.OR = [
-        { isLocked: false },
-        { lockedDepartment: filters.department },
-      ]
+      // For department filter: isLocked=false OR lockedDepartment=department
+      const departmentCondition = or(
+        eq(templates.isLocked, false),
+        eq(templates.lockedDepartment, filters.department)
+      )!
+      conditions.push(departmentCondition)
     }
 
-    return prisma.template.findMany({
-      where,
-      orderBy: { usageCount: 'desc' },
-    })
+    let query = db.select().from(templates)
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)!) as any
+    }
+
+    const results = await query.orderBy(desc(templates.usageCount))
+    return results
   }
 
   static async findById(id: string): Promise<Template | null> {
-    return prisma.template.findUnique({
-      where: { id },
-      include: {
-        departmentAccess: true,
-      },
-    })
+    const [template] = await db
+      .select()
+      .from(templates)
+      .where(eq(templates.id, id))
+      .limit(1)
+
+    return template || null
   }
 
   static async create(data: CreateTemplateData): Promise<Template> {
-    return prisma.template.create({
-      data: {
+    const [template] = await db
+      .insert(templates)
+      .values({
         name: data.name,
         category: data.category,
         isLocked: data.isLocked || false,
@@ -59,32 +68,66 @@ export class TemplateService {
         previewImage: data.previewImage,
         canvasConfig: data.canvasConfig,
         fields: data.fields,
-      },
-    })
+      })
+      .returning()
+
+    if (!template) {
+      throw new Error('Failed to create template')
+    }
+
+    return template
   }
 
   static async update(id: string, data: Partial<CreateTemplateData>): Promise<Template> {
-    return prisma.template.update({
-      where: { id },
-      data,
-    })
+    const updateData: any = {}
+    if (data.name !== undefined) updateData.name = data.name
+    if (data.category !== undefined) updateData.category = data.category
+    if (data.isLocked !== undefined) updateData.isLocked = data.isLocked
+    if (data.lockedDepartment !== undefined) updateData.lockedDepartment = data.lockedDepartment
+    if (data.previewImage !== undefined) updateData.previewImage = data.previewImage
+    if (data.canvasConfig !== undefined) updateData.canvasConfig = data.canvasConfig
+    if (data.fields !== undefined) updateData.fields = data.fields
+
+    const [updated] = await db
+      .update(templates)
+      .set(updateData)
+      .where(eq(templates.id, id))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Template not found')
+    }
+
+    return updated
   }
 
   static async incrementUsage(id: string): Promise<Template> {
-    return prisma.template.update({
-      where: { id },
-      data: {
-        usageCount: {
-          increment: 1,
-        },
-      },
-    })
+    const [template] = await db
+      .select()
+      .from(templates)
+      .where(eq(templates.id, id))
+      .limit(1)
+
+    if (!template) {
+      throw new Error('Template not found')
+    }
+
+    const [updated] = await db
+      .update(templates)
+      .set({ usageCount: template.usageCount + 1 })
+      .where(eq(templates.id, id))
+      .returning()
+
+    if (!updated) {
+      throw new Error('Failed to update template')
+    }
+
+    return updated
   }
 
   static async delete(id: string): Promise<void> {
-    await prisma.template.delete({
-      where: { id },
-    })
+    await db
+      .delete(templates)
+      .where(eq(templates.id, id))
   }
 }
-

@@ -30,12 +30,14 @@ export async function POST(request: NextRequest) {
       username: savedUser.username,
     })
 
-    // Send verification email
+    // Send verification email with OTP
+    let emailSent = false
+    let emailError: string | null = null
+    
     try {
-      const verificationUrl = `${process.env.APP_URL || 'http://localhost:3000'}/auth/verify-email?token=${token}`
       const emailHtml = renderEmailVerification({
         username: savedUser.username,
-        verificationUrl,
+        otp: token, // token is now a 6-digit OTP
       })
 
       await sendEmail({
@@ -43,35 +45,42 @@ export async function POST(request: NextRequest) {
         subject: 'Verify Your Email - FYB University',
         html: emailHtml,
       })
-      console.log('✅ Verification email sent to:', savedUser.email)
-    } catch (emailError) {
-      console.error('Failed to send verification email:', emailError)
+      emailSent = true
+      console.log('✅ Verification OTP sent to:', savedUser.email)
+    } catch (err: any) {
+      emailError = err.message || 'Failed to send email'
+      console.error('Failed to send verification email:', err.message)
       // Don't fail registration if email fails - user is still saved to database
+      // In development, OTP is logged to console
     }
 
-    // Set session with verified database user
-    await setSession({
-      userId: savedUser.id,
-      email: savedUser.email,
-      role: savedUser.role,
-    })
+    // Don't set session yet - user must verify email first
+    // Session will be set after email verification
 
     // Return success response with user data from database
-    return NextResponse.json(
-      {
-        success: true,
-        user: {
-          id: savedUser.id,
-          email: savedUser.email,
-          username: savedUser.username,
-          role: savedUser.role,
-          department: savedUser.department,
-          isVerified: savedUser.isVerified,
-        },
-        message: 'Registration successful. Please check your email to verify your account.',
+    const response: any = {
+      success: true,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        username: savedUser.username,
+        role: savedUser.role,
+        department: savedUser.department,
+        isVerified: savedUser.isVerified,
       },
-      { status: 201 }
-    )
+      message: emailSent
+        ? 'Registration successful. Please check your email for the OTP code to verify your account.'
+        : 'Registration successful. However, we could not send the verification email. Please contact support.',
+      otpSent: emailSent,
+    }
+
+    // In development, include OTP in response if email failed
+    if (!emailSent && process.env.NODE_ENV === 'development') {
+      response.developmentOTP = token
+      response.message = `Registration successful. Email not configured. OTP for testing: ${token}`
+    }
+
+    return NextResponse.json(response, { status: 201 })
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
@@ -80,6 +89,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Handle database connection errors
+    if (error.message?.includes('Database connection failed') || error.message?.includes("Can't reach database server")) {
+      console.error('❌ Database connection error during registration:', error.message)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Database connection failed. Please try again in a moment. If the problem persists, contact support.',
+          code: 'DATABASE_ERROR',
+        },
+        { status: 503 }
+      )
+    }
+
+    console.error('Registration error:', error)
     return NextResponse.json(
       { success: false, error: error.message || 'Registration failed' },
       { status: 400 }
