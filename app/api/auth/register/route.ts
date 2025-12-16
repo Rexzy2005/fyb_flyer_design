@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       emailSent = true
       console.log('✅ Verification OTP sent to:', savedUser.email)
     } catch (err: any) {
-      emailError = err.message || 'Failed to send email'
       console.error('Failed to send verification email:', err.message)
       // Don't fail registration if email fails - user is still saved to database
       // In development, OTP is logged to console
