@@ -1,4 +1,11 @@
-export type UserRole = 'student' | 'admin' | 'department_admin'
+// Allow both backend enum (uppercase) and frontend (lowercase) role values
+export type UserRole =
+  | 'student'
+  | 'admin'
+  | 'department_admin'
+  | 'STUDENT'
+  | 'ADMIN'
+  | 'DEPARTMENT_ADMIN'
 
 export interface User {
   id: string

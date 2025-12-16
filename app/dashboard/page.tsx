@@ -44,7 +44,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchDepartmentAccess = async () => {
-      if (!user || user.role !== 'DEPARTMENT_ADMIN' || !user.department) return
+      const role = user?.role
+      const isDeptAdmin = role === 'DEPARTMENT_ADMIN' || role === 'department_admin'
+      if (!user || !isDeptAdmin || !user.department) return
       setIsLoadingAccess(true)
       setLockError('')
       try {
