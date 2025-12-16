@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { CheckCircle, XCircle, Mail, Loader2, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/store/auth-store'
 
-export default function VerifyOTPPage() {
+function VerifyOTPPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
@@ -310,6 +310,30 @@ export default function VerifyOTPPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function VerifyOTPPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 flex items-center">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+            <Card className="p-6 shadow-lg">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <Loader2 className="w-10 h-10 text-primary-600 dark:text-primary-400 animate-spin" />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Loading verification...</h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Please wait while we prepare your verification page.</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      }
+    >
+      <VerifyOTPPageInner />
+    </Suspense>
   )
 }
 
