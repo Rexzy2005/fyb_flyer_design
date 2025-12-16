@@ -48,7 +48,7 @@ export async function POST(_request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    const body = await _request.json()
     const validatedData = createSchoolSchema.parse(body)
 
     // Check if school already exists
