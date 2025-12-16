@@ -27,6 +27,7 @@ export interface Template {
   name: string
   category: TemplateCategory
   department?: string
+  lockedDepartment?: string
   departmentLockCode?: string
   usageCount: number
   previewImage: string
