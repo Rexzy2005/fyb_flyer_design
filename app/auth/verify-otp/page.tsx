@@ -22,7 +22,7 @@ export default function VerifyOTPPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
 
   useEffect(() => {
-    if (user?.isVerified) {
+    if (user?.emailVerified || (user as any)?.isVerified) {
       router.push('/dashboard')
     }
   }, [user, router])

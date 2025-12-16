@@ -7,6 +7,8 @@ export interface User {
   role: UserRole
   department?: string
   emailVerified: boolean
+  // Optional for compatibility with backend API responses
+  isVerified?: boolean
   createdAt: string
 }
 
