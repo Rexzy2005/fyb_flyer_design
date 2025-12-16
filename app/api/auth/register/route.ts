@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { UserService } from '@/services/user.service'
 import { registerSchema } from '@/lib/validations'
-import { setSession } from '@/lib/auth'
+// import { setSession } from '@/lib/auth'
 import { sendEmail } from '@/lib/mailer'
 import { renderEmailVerification } from '@/emails/templates/verify-email'
 
@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
 
     // Send verification email with OTP
     let emailSent = false
-    let emailError: string | null = null
     
     try {
       const emailHtml = renderEmailVerification({

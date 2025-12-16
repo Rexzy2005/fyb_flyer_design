@@ -7,7 +7,7 @@ const createSchoolSchema = z.object({
   name: z.string().min(1, 'School name is required'),
 })
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user || user.role !== 'ADMIN') {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user || user.role !== 'ADMIN') {

@@ -57,10 +57,8 @@ export async function POST(request: NextRequest) {
     await TemplateService.update(templateId, {
       isLocked: true,
       lockedDepartment: user.department,
-      // status is already used as string, keep consistent
-      // 'locked' means only department with access code can use
-      // @ts-ignore - status accepts arbitrary string
-      status: 'locked',
+      // status stored as string; keep as locked for department-only usage
+      status: 'locked' as any,
     } as any)
 
     // Generate 6-digit code

@@ -236,7 +236,7 @@ export default function VerifyOTPPage() {
 
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                      Didn't receive the code?
+                      Didn&apos;t receive the code?
                     </p>
                     <Button
                       variant="outline"
