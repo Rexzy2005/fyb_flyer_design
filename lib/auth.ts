@@ -37,7 +37,8 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
     const { payload } = await jwtVerify(token, key, {
       algorithms: ['HS256'],
     })
-    return payload as JWTPayload
+    // Cast through unknown to satisfy structural typing between jose payload and our shape
+    return payload as unknown as JWTPayload
   } catch (error) {
     return null
   }
