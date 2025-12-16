@@ -1,9 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import { db } from './db'
-import { users, type User, type Role } from '@/drizzle/schema'
+import type { Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { eq } from 'drizzle-orm'
 
 const secretKey = process.env.JWT_SECRET || 'fallback-secret-key-change-in-production'
 const key = new TextEncoder().encode(secretKey)
@@ -72,19 +70,4 @@ export async function setSession(payload: Omit<JWTPayload, 'iat' | 'exp'>): Prom
 export async function clearSession(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete('auth-token')
-}
-
-export async function getCurrentUser(): Promise<User | null> {
-  const session = await getSession()
-  if (!session) {
-    return null
-  }
-
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, session.userId))
-    .limit(1)
-
-  return user || null
 }

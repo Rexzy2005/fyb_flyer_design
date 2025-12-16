@@ -1,14 +1,15 @@
 import { db, testDatabaseConnection } from '@/lib/db'
 import { hashPassword, verifyPassword } from '@/lib/auth'
 import { generateEmailVerificationToken } from '@/lib/utils'
-import { users, emailVerificationTokens, type User, type Role } from '@/drizzle/schema'
-import { eq, or, and, desc } from 'drizzle-orm'
+import type { Role, User } from '@prisma/client'
 
 export interface RegisterUserData {
   email: string
   username: string
   password: string
+  school: string
   department?: string
+  isDepartmentHead?: boolean
 }
 
 export interface LoginUserData {
@@ -26,14 +27,13 @@ export class UserService {
 
     try {
       // Check if user exists
-      const existingUsers = await db
-        .select()
-        .from(users)
-        .where(or(eq(users.email, data.email), eq(users.username, data.username)))
-        .limit(1)
+      const existingUser = await db.user.findFirst({
+        where: {
+          OR: [{ email: data.email }, { username: data.username }],
+        },
+      })
 
-      if (existingUsers.length > 0) {
-        const existingUser = existingUsers[0]
+      if (existingUser) {
         if (existingUser.email === data.email) {
           throw new Error('Email already registered')
         }
@@ -45,38 +45,45 @@ export class UserService {
       // Hash password
       const passwordHash = await hashPassword(data.password)
 
+      // Determine role
+      const role: Role = data.isDepartmentHead ? 'DEPARTMENT_ADMIN' : 'STUDENT'
+
+      // Ensure only one department head per department
+      if (data.isDepartmentHead && data.department) {
+        const existingHead = await db.user.findFirst({
+          where: {
+            department: data.department,
+            role: 'DEPARTMENT_ADMIN',
+            school: data.school,
+          },
+        })
+
+        if (existingHead) {
+          throw new Error('A department head already exists for this department')
+        }
+      }
+
+      if (data.isDepartmentHead && !data.department) {
+        throw new Error('Department is required when registering as a department head')
+      }
+
       // Create user in database
-      const [user] = await db
-        .insert(users)
-        .values({
+      const user = await db.user.create({
+        data: {
           email: data.email,
           username: data.username,
           passwordHash,
+          school: data.school,
           department: data.department,
-          role: 'STUDENT',
+          role,
           isVerified: false,
-        })
-        .returning()
-
-      if (!user) {
-        throw new Error('Failed to save user to database')
-      }
-
-      // Verify user was created in database
-      const [verifyUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, user.id))
-        .limit(1)
-
-      if (!verifyUser) {
-        throw new Error('Failed to save user to database')
-      }
+        },
+      })
 
       // Generate email verification token
       const token = await generateEmailVerificationToken(user.id)
 
-      return { user: verifyUser, token }
+      return { user, token }
     } catch (error: any) {
       // Handle database connection errors
       if (error.code === 'P1001' || error.message?.includes("Can't reach database server")) {
@@ -88,11 +95,9 @@ export class UserService {
   }
 
   static async login(data: LoginUserData): Promise<User> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, data.email))
-      .limit(1)
+    const user = await db.user.findUnique({
+      where: { email: data.email },
+    })
 
     if (!user) {
       throw new Error('Invalid email or password')
@@ -112,62 +117,49 @@ export class UserService {
 
   static async verifyEmail(otp: string, email: string): Promise<User> {
     // Find user by email
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1)
+    const user = await db.user.findUnique({
+      where: { email },
+    })
 
     if (!user) {
       throw new Error('User not found')
     }
 
     // Find verification token for this user
-    const tokens = await db
-      .select()
-      .from(emailVerificationTokens)
-      .where(and(
-        eq(emailVerificationTokens.userId, user.id),
-        eq(emailVerificationTokens.token, otp)
-      ))
-      .orderBy(desc(emailVerificationTokens.createdAt))
-      .limit(1)
+    const emailToken = await db.emailVerificationToken.findFirst({
+      where: {
+        userId: user.id,
+        token: otp,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
 
-    if (tokens.length === 0) {
+    if (!emailToken) {
       throw new Error('Invalid OTP code')
     }
-
-    const emailToken = tokens[0]
 
     if (emailToken.expiresAt < new Date()) {
       throw new Error('OTP code has expired. Please request a new one.')
     }
 
     // Mark user as verified
-    const [verifiedUser] = await db
-      .update(users)
-      .set({ isVerified: true })
-      .where(eq(users.id, user.id))
-      .returning()
-
-    if (!verifiedUser) {
-      throw new Error('Failed to verify user')
-    }
+    const verifiedUser = await db.user.update({
+      where: { id: user.id },
+      data: { isVerified: true },
+    })
 
     // Delete used token
-    await db
-      .delete(emailVerificationTokens)
-      .where(eq(emailVerificationTokens.id, emailToken.id))
+    await db.emailVerificationToken.delete({
+      where: { id: emailToken.id },
+    })
 
     return verifiedUser
   }
 
   static async resendOTP(email: string): Promise<string> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1)
+    const user = await db.user.findUnique({
+      where: { email },
+    })
 
     if (!user) {
       throw new Error('User not found')
@@ -178,9 +170,9 @@ export class UserService {
     }
 
     // Delete old tokens for this user
-    await db
-      .delete(emailVerificationTokens)
-      .where(eq(emailVerificationTokens.userId, user.id))
+    await db.emailVerificationToken.deleteMany({
+      where: { userId: user.id },
+    })
 
     // Generate new OTP
     const { generateEmailVerificationToken } = await import('@/lib/utils')
@@ -190,36 +182,21 @@ export class UserService {
   }
 
   static async findById(id: string): Promise<User | null> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1)
-
-    return user || null
+    return db.user.findUnique({
+      where: { id },
+    })
   }
 
   static async findByEmail(email: string): Promise<User | null> {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1)
-
-    return user || null
+    return db.user.findUnique({
+      where: { email },
+    })
   }
 
   static async updateRole(userId: string, role: Role): Promise<User> {
-    const [updatedUser] = await db
-      .update(users)
-      .set({ role })
-      .where(eq(users.id, userId))
-      .returning()
-
-    if (!updatedUser) {
-      throw new Error('User not found')
-    }
-
-    return updatedUser
+    return db.user.update({
+      where: { id: userId },
+      data: { role },
+    })
   }
 }

@@ -1,8 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { db } from './db'
-import { emailVerificationTokens } from '@/drizzle/schema'
-import crypto from 'crypto'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -46,10 +44,12 @@ export async function generateEmailVerificationToken(userId: string): Promise<st
   const expiresAt = new Date()
   expiresAt.setMinutes(expiresAt.getMinutes() + 10) // 10 minutes expiry for OTP
 
-  await db.insert(emailVerificationTokens).values({
-    userId,
-    token: otp,
-    expiresAt,
+  await db.emailVerificationToken.create({
+    data: {
+      userId,
+      token: otp,
+      expiresAt,
+    },
   })
 
   return otp

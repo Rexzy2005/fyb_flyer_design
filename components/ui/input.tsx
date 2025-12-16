@@ -15,7 +15,8 @@ export const Input: React.FC<InputProps> = ({
   id,
   ...props
 }) => {
-  const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
+  const reactId = React.useId()
+  const inputId = id || reactId
 
   return (
     <div className="w-full">

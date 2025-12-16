@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
-import { departmentAccess, type DepartmentAccess } from '@/drizzle/schema'
-import { eq, and } from 'drizzle-orm'
+import type { DepartmentAccess } from '@prisma/client'
 
 export interface CreateDepartmentAccessData {
   templateId: string
@@ -16,16 +15,12 @@ export class DepartmentService {
     department: string,
     accessCode: string
   ): Promise<DepartmentAccess> {
-    const [access] = await db
-      .select()
-      .from(departmentAccess)
-      .where(
-        and(
-          eq(departmentAccess.templateId, templateId),
-          eq(departmentAccess.accessCode, accessCode)
-        )
-      )
-      .limit(1)
+    const access = await db.departmentAccess.findFirst({
+      where: {
+        templateId,
+        accessCode,
+      },
+    })
 
     if (!access) {
       throw new Error('Invalid access code')
@@ -47,52 +42,35 @@ export class DepartmentService {
   }
 
   static async useAccessCode(accessId: string): Promise<DepartmentAccess> {
-    const [access] = await db
-      .select()
-      .from(departmentAccess)
-      .where(eq(departmentAccess.id, accessId))
-      .limit(1)
+    const access = await db.departmentAccess.findUnique({
+      where: { id: accessId },
+    })
 
     if (!access) {
       throw new Error('Access code not found')
     }
 
-    const [updated] = await db
-      .update(departmentAccess)
-      .set({ usedCount: access.usedCount + 1 })
-      .where(eq(departmentAccess.id, accessId))
-      .returning()
-
-    if (!updated) {
-      throw new Error('Failed to update access code')
-    }
-
-    return updated
+    return db.departmentAccess.update({
+      where: { id: accessId },
+      data: { usedCount: access.usedCount + 1 },
+    })
   }
 
   static async create(data: CreateDepartmentAccessData): Promise<DepartmentAccess> {
-    const [access] = await db
-      .insert(departmentAccess)
-      .values(data)
-      .returning()
-
-    if (!access) {
-      throw new Error('Failed to create department access')
-    }
-
-    return access
+    return db.departmentAccess.create({
+      data,
+    })
   }
 
   static async findByTemplate(templateId: string): Promise<DepartmentAccess[]> {
-    return db
-      .select()
-      .from(departmentAccess)
-      .where(eq(departmentAccess.templateId, templateId))
+    return db.departmentAccess.findMany({
+      where: { templateId },
+    })
   }
 
   static async delete(id: string): Promise<void> {
-    await db
-      .delete(departmentAccess)
-      .where(eq(departmentAccess.id, id))
+    await db.departmentAccess.delete({
+      where: { id },
+    })
   }
 }

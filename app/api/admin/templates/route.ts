@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { TemplateService } from '@/services/template.service'
 import { createTemplateSchema } from '@/lib/validations'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/current-user'
 
 export async function POST(request: NextRequest) {
   try {

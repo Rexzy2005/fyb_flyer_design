@@ -27,6 +27,11 @@ enum PaymentStatus {
   FAILED
 }
 
+enum PaymentType {
+  DOWNLOAD
+  LOCK
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -34,6 +39,7 @@ model User {
   passwordHash String    @map("password_hash")
   isVerified   Boolean   @default(false) @map("is_verified")
   role         Role      @default(STUDENT)
+  school       String?   @map("school")
   department   String?
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
@@ -105,6 +111,7 @@ model Payment {
   userId     String        @map("user_id")
   templateId String        @map("template_id")
   amount     Int
+  type       PaymentType   @default(DOWNLOAD)
   status     PaymentStatus @default(PENDING)
   reference  String        @unique
   createdAt  DateTime      @default(now()) @map("created_at")
@@ -133,5 +140,14 @@ model DepartmentAccess {
 
   @@unique([templateId, accessCode])
   @@map("department_access")
+}
+
+model School {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("schools")
 }
 

@@ -108,11 +108,16 @@ export default function TemplatesPage() {
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                   {template.status === 'locked' && (
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2 right-2 space-y-1 text-right">
                       <Badge variant="warning">
                         <Lock className="w-3 h-3 mr-1" />
                         Locked
                       </Badge>
+                      {template.lockedDepartment && (
+                        <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
+                          {template.lockedDepartment} Dept
+                        </p>
+                      )}
                     </div>
                   )}
                   {template.usageCount > 100 && (
@@ -164,11 +169,16 @@ export default function TemplatesPage() {
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                   {template.status === 'locked' && (
-                    <div className="absolute top-2 right-2">
+                    <div className="absolute top-2 right-2 space-y-1 text-right">
                       <Badge variant="warning">
                         <Lock className="w-3 h-3 mr-1" />
                         Locked
                       </Badge>
+                      {template.lockedDepartment && (
+                        <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
+                          {template.lockedDepartment} Dept
+                        </p>
+                      )}
                     </div>
                   )}
                   {template.usageCount > 100 && (

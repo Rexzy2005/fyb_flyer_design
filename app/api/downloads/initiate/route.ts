@@ -4,7 +4,7 @@ import { TemplateService } from '@/services/template.service'
 import { DepartmentService } from '@/services/department.service'
 import { PaymentService } from '@/services/payment.service'
 import { initiateDownloadSchema, unlockTemplateSchema } from '@/lib/validations'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/current-user'
 import { uploadImage } from '@/lib/cloudinary'
 
 export async function POST(request: NextRequest) {

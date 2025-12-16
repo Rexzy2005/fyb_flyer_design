@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PaymentService } from '@/services/payment.service'
 import { initiatePaymentSchema } from '@/lib/validations'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/current-user'
 
 export async function POST(request: NextRequest) {
   try {

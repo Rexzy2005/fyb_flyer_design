@@ -1,12 +1,12 @@
 import { db } from '@/lib/db'
-import { payments, users, templates, type Payment, type PaymentStatus } from '@/drizzle/schema'
 import { initiatePayment, verifyPayment } from '@/lib/payment'
-import { eq, desc } from 'drizzle-orm'
+import type { Payment, PaymentStatus, PaymentType } from '@prisma/client'
 
 export interface CreatePaymentData {
   userId: string
   templateId: string
   amount: number
+  type?: PaymentType
 }
 
 export class PaymentService {
@@ -19,20 +19,16 @@ export class PaymentService {
     })
 
     // Create payment record
-    const [payment] = await db
-      .insert(payments)
-      .values({
+    const payment = await db.payment.create({
+      data: {
         userId: data.userId,
         templateId: data.templateId,
         amount: data.amount,
+        type: data.type ?? 'DOWNLOAD',
         reference: paymentResponse.reference,
         status: 'PENDING',
-      })
-      .returning()
-
-    if (!payment) {
-      throw new Error('Failed to create payment')
-    }
+      },
+    })
 
     return { payment, reference: paymentResponse.reference }
   }
@@ -41,11 +37,9 @@ export class PaymentService {
     // Verify payment (simulated)
     const verification = await verifyPayment(reference)
 
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.reference, reference))
-      .limit(1)
+    const payment = await db.payment.findUnique({
+      where: { reference },
+    })
 
     if (!payment) {
       throw new Error('Payment not found')
@@ -54,34 +48,22 @@ export class PaymentService {
     // Update payment status
     const status: PaymentStatus = verification.status === 'success' ? 'COMPLETED' : 'FAILED'
 
-    const [updated] = await db
-      .update(payments)
-      .set({ status })
-      .where(eq(payments.id, payment.id))
-      .returning()
-
-    if (!updated) {
-      throw new Error('Failed to update payment')
-    }
-
-    return updated
+    return db.payment.update({
+      where: { id: payment.id },
+      data: { status },
+    })
   }
 
   static async findByReference(reference: string): Promise<Payment | null> {
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.reference, reference))
-      .limit(1)
-
-    return payment || null
+    return db.payment.findUnique({
+      where: { reference },
+    })
   }
 
   static async findByUser(userId: string): Promise<Payment[]> {
-    return db
-      .select()
-      .from(payments)
-      .where(eq(payments.userId, userId))
-      .orderBy(desc(payments.createdAt))
+    return db.payment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    })
   }
 }

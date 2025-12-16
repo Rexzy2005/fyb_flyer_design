@@ -8,7 +8,7 @@ import { useDownloadStore } from '@/store/download-store'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Download, Mail, User, Calendar } from 'lucide-react'
+import { Download, Mail, User, Calendar, Lock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export default function DashboardPage() {
@@ -16,6 +16,13 @@ export default function DashboardPage() {
   const { user, isAuthenticated } = useAuthStore()
   const { getUserDownloads } = useDownloadStore()
   const [downloads, setDownloads] = React.useState<any[]>([])
+  const [departmentAccesses, setDepartmentAccesses] = React.useState<any[]>([])
+  const [isLoadingAccess, setIsLoadingAccess] = React.useState(false)
+  const [lockTemplateId, setLockTemplateId] = React.useState('')
+  const [lockUsageLimit, setLockUsageLimit] = React.useState(100)
+  const [lockExpiresAt, setLockExpiresAt] = React.useState('')
+  const [lockError, setLockError] = React.useState('')
+  const [lockSuccess, setLockSuccess] = React.useState('')
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,6 +41,62 @@ export default function DashboardPage() {
       setDownloads(userDownloads)
     }
   }, [isAuthenticated, router, user, getUserDownloads])
+
+  useEffect(() => {
+    const fetchDepartmentAccess = async () => {
+      if (!user || user.role !== 'DEPARTMENT_ADMIN' || !user.department) return
+      setIsLoadingAccess(true)
+      setLockError('')
+      try {
+        const res = await fetch('/api/department-head/access')
+        const data = await res.json()
+        if (data.success) {
+          setDepartmentAccesses(data.accesses)
+        } else {
+          setLockError(data.error || 'Failed to load department access codes')
+        }
+      } catch (err: any) {
+        setLockError('Failed to load department access codes')
+      } finally {
+        setIsLoadingAccess(false)
+      }
+    }
+
+    fetchDepartmentAccess()
+  }, [user])
+
+  const handleLockTemplate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!lockTemplateId) {
+      setLockError('Please enter a template ID to lock')
+      return
+    }
+    setLockError('')
+    setLockSuccess('')
+    try {
+      const res = await fetch('/api/department-head/lock-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: lockTemplateId,
+          usageLimit: lockUsageLimit,
+          expiresAt: lockExpiresAt || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        setLockError(data.error || 'Failed to lock template')
+        return
+      }
+      setLockSuccess(`Template locked. Access code: ${data.access.accessCode}`)
+      setDepartmentAccesses((prev) => [data.access, ...prev])
+      setLockTemplateId('')
+      setLockUsageLimit(100)
+      setLockExpiresAt('')
+    } catch (err: any) {
+      setLockError('Failed to lock template')
+    }
+  }
 
   if (!isAuthenticated || !user) {
     return null
@@ -189,6 +252,136 @@ export default function DashboardPage() {
           </div>
         )}
       </Card>
+
+      {/* Department Head Panel */}
+      {user.role === 'DEPARTMENT_ADMIN' && user.department && (
+        <Card className="mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Department Head Panel
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Manage locked templates and department access codes for {user.department}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Lock template form */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Lock a Template for Your Department
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Enter the template ID you want to lock. A one-time simulated payment will be made,
+                then a 6-digit access code will be generated for your department.
+              </p>
+              <form onSubmit={handleLockTemplate} className="space-y-4">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    You can find template IDs in the URL when editing a template (e.g. /editor/ID).
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Template ID
+                  </label>
+                  <input
+                    type="text"
+                    value={lockTemplateId}
+                    onChange={(e) => setLockTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    placeholder="Template ID"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Usage Limit
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={lockUsageLimit}
+                      onChange={(e) => setLockUsageLimit(parseInt(e.target.value || '1', 10))}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Expires At (optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={lockExpiresAt}
+                      onChange={(e) => setLockExpiresAt(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+
+                {lockError && (
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-600 dark:text-red-400">{lockError}</p>
+                  </div>
+                )}
+                {lockSuccess && (
+                  <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <p className="text-sm text-green-600 dark:text-green-400">{lockSuccess}</p>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full">
+                  Lock Template for Department
+                </Button>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Locking a template triggers a simulated payment and generates a unique 6-digit access code for your department.
+                </p>
+              </form>
+            </div>
+
+            {/* Access code list */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                Department Access Codes
+              </h3>
+              {isLoadingAccess ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400">Loading access codes...</p>
+              ) : departmentAccesses.length === 0 ? (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  No department access codes yet. Lock a template to generate a code you can share with your course mates.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {departmentAccesses.map((access) => (
+                    <div
+                      key={access.id}
+                      className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {access.templateName || access.templateId}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Code:{' '}
+                          <span className="font-mono text-base text-primary-600 dark:text-primary-400">
+                            {access.accessCode}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Uses: {access.usedCount}/{access.usageLimit} · Expires:{' '}
+                          {formatDate(access.expiresAt)}
+                        </p>
+                      </div>
+                      <Badge variant="warning">Department Locked</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

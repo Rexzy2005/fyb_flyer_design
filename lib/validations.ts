@@ -4,8 +4,21 @@ export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   username: z.string().min(3, 'Username must be at least 3 characters').max(30, 'Username too long'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  school: z.string().min(1, 'School is required'),
   department: z.string().optional(),
-})
+  isDepartmentHead: z.boolean().optional().default(false),
+}).refine(
+  (data) => {
+    if (data.isDepartmentHead) {
+      return !!data.department && data.department.trim().length > 0
+    }
+    return true
+  },
+  {
+    message: 'Department is required when registering as a department head',
+    path: ['department'],
+  }
+)
 
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
