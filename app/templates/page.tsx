@@ -40,20 +40,34 @@ export default function TemplatesPage() {
     .slice(0, 3)
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Choose a Template
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-400">
-          Select from our collection of professional flyer templates
-        </p>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 lg:py-14">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100">
+            Choose a Template
+          </h1>
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400">
+            Select from our collection of professional flyer templates
+          </p>
+        </div>
+        {isAuthenticated && (
+          <div className="flex justify-start sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => router.push('/dashboard')}
+              className="w-full sm:w-auto"
+              size="sm"
+            >
+              Back to Dashboard
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Search and Filters */}
       <div className="mb-8 space-y-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
             type="text"
             placeholder="Search templates..."
@@ -68,6 +82,7 @@ export default function TemplatesPage() {
             variant={selectedCategory === 'all' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('all')}
+            className="min-w-[90px]"
           >
             All
           </Button>
@@ -75,6 +90,7 @@ export default function TemplatesPage() {
             variant={selectedCategory === 'fyb' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('fyb')}
+            className="min-w-[140px]"
           >
             FYB Face of Day/Week
           </Button>
@@ -82,6 +98,7 @@ export default function TemplatesPage() {
             variant={selectedCategory === 'signout' ? 'primary' : 'outline'}
             size="sm"
             onClick={() => setSelectedCategory('signout')}
+            className="min-w-[130px]"
           >
             Sign-out Flyers
           </Button>
@@ -97,7 +114,7 @@ export default function TemplatesPage() {
               Popular Templates
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {popularTemplates.map((template) => (
               <Card
                 key={template.id}

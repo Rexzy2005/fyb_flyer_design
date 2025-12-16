@@ -95,7 +95,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || `FYB University <${process.env.SMTP_USER}>`,
+      from: process.env.SMTP_FROM || `FYB Studio <${process.env.SMTP_USER}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,

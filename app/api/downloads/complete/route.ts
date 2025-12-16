@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail({
         to: user.email,
-        subject: 'Your Design is Ready - FYB University',
+        subject: 'Your Design is Ready - FYB Studio',
         html: emailHtml,
       })
 
@@ -93,8 +93,9 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error: any) {
+    console.error('Download completion failed:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Download completion failed' },
+      { success: false, error: 'We could not finish your download. Please try again.' },
       { status: 500 }
     )
   }

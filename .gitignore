@@ -34,4 +34,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
+/scripts/delete-all-users.ts
+/scripts/test-connection.js
+/scripts/delete-all-users.ts

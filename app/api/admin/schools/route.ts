@@ -30,8 +30,9 @@ export async function GET(request: NextRequest) {
       })),
     })
   } catch (error: any) {
+    console.error('Failed to load admin schools:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to load schools' },
+      { success: false, error: 'We could not load the schools. Please try again.' },
       { status: 500 }
     )
   }
@@ -79,13 +80,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the school details are not valid. Please check and try again.' },
         { status: 400 }
       )
     }
 
+    console.error('Failed to create school:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create school' },
+      { success: false, error: 'We could not create the school. Please try again.' },
       { status: 500 }
     )
   }

@@ -57,7 +57,7 @@ export async function PUT(
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the school details are not valid. Please check and try again.' },
         { status: 400 }
       )
     }
@@ -69,8 +69,9 @@ export async function PUT(
       )
     }
 
+    console.error('Failed to update school:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to update school' },
+      { success: false, error: 'We could not update the school. Please try again.' },
       { status: 500 }
     )
   }
@@ -107,8 +108,9 @@ export async function DELETE(
       )
     }
 
+    console.error('Failed to delete school:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to delete school' },
+      { success: false, error: 'We could not delete the school. Please try again.' },
       { status: 500 }
     )
   }

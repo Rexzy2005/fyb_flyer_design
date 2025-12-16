@@ -37,13 +37,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the template details are not valid. Please check and try again.' },
         { status: 400 }
       )
     }
 
+    console.error('Failed to create template:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to create template' },
+      { success: false, error: 'We could not create the template. Please try again.' },
       { status: 500 }
     )
   }

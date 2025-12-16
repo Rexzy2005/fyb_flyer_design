@@ -23,7 +23,7 @@ export function renderEmailVerification({ username, otp }: VerifyEmailProps): st
               <div style="display: inline-block; width: 60px; height: 60px; background-color: #ffffff; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
                 <span style="font-size: 32px; font-weight: bold; color: #0ea5e9;">FYB</span>
               </div>
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Welcome to FYB University!</h1>
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Welcome to FYB Studio!</h1>
             </td>
           </tr>
           
@@ -33,7 +33,7 @@ export function renderEmailVerification({ username, otp }: VerifyEmailProps): st
               <p style="margin: 0 0 20px; font-size: 16px; line-height: 1.6; color: #374151;">Hi ${username},</p>
               
               <p style="margin: 0 0 30px; font-size: 16px; line-height: 1.6; color: #374151;">
-                Thank you for joining FYB University! We're excited to have you on board. To get started, please verify your email address using the OTP code below.
+                Thank you for joining FYB Studio! We're excited to have you on board. To get started, please verify your email address using the OTP code below.
               </p>
               
               <div style="text-align: center; margin: 40px 0; padding: 30px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; border: 2px dashed #0ea5e9;">
@@ -51,7 +51,7 @@ export function renderEmailVerification({ username, otp }: VerifyEmailProps): st
               </div>
               
               <p style="margin: 30px 0 0; font-size: 14px; line-height: 1.6; color: #6b7280;">
-                <strong>Important:</strong> This OTP code will expire in 10 minutes. If you didn't create an account with FYB University, please ignore this email.
+                <strong>Important:</strong> This OTP code will expire in 10 minutes. If you didn't create an account with FYB Studio, please ignore this email.
               </p>
             </td>
           </tr>
@@ -61,10 +61,10 @@ export function renderEmailVerification({ username, otp }: VerifyEmailProps): st
             <td style="padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;">
               <p style="margin: 0 0 10px; font-size: 14px; color: #6b7280;">
                 Best regards,<br>
-                <strong style="color: #0ea5e9;">The FYB University Team</strong>
+                <strong style="color: #0ea5e9;">The FYB Studio Team</strong>
               </p>
               <p style="margin: 20px 0 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} FYB University. All rights reserved.
+                © ${new Date().getFullYear()} FYB Studio. All rights reserved.
               </p>
             </td>
           </tr>

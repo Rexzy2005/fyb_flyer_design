@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail({
         to: user.email,
-        subject: 'Your Verification Code - FYB University',
+        subject: 'Your Verification Code - FYB Studio',
         html: emailHtml,
       })
       emailSent = true
@@ -49,15 +49,15 @@ export async function POST(request: NextRequest) {
       if (process.env.NODE_ENV === 'development') {
         return NextResponse.json({
           success: true,
-          message: 'Email not configured. OTP for testing:',
+          message: 'OTP code generated (development mode).',
           developmentOTP: otp,
         })
       }
       
       return NextResponse.json(
         { 
-          success: false, 
-          error: emailError.message || 'Failed to send email. Please check your email configuration and try again.' 
+          success: false,
+          error: 'We could not send the verification email right now. Please try again in a few minutes.',
         },
         { status: 500 }
       )
@@ -76,9 +76,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error: any) {
+    console.error('Failed to resend OTP:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to resend OTP' },
-      { status: 400 }
+      { success: false, error: 'We could not resend the OTP. Please try again.' },
+      { status: 500 }
     )
   }
 }

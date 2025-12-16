@@ -35,13 +35,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the payment details are not valid. Please check and try again.' },
         { status: 400 }
       )
     }
 
+    console.error('Payment initiation failed:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Payment initiation failed' },
+      { success: false, error: 'We could not start your payment. Please try again.' },
       { status: 500 }
     )
   }

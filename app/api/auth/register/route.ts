@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       await sendEmail({
         to: savedUser.email,
-        subject: 'Verify Your Email - FYB University',
+        subject: 'Verify Your Email - FYB Studio',
         html: emailHtml,
       })
       emailSent = true
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the information you entered is not valid. Please check the form and try again.' },
         { status: 400 }
       )
     }
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
 
     console.error('Registration error:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Registration failed' },
-      { status: 400 }
+      { success: false, error: 'We could not complete your registration. Please try again.' },
+      { status: 500 }
     )
   }
 }

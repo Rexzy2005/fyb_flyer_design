@@ -11,10 +11,10 @@ export const Footer: React.FC = () => {
               <div className="h-6 w-6 rounded bg-primary-600 flex items-center justify-center">
                 <span className="text-white font-bold text-xs">FYB</span>
               </div>
-              <span className="font-bold text-gray-900 dark:text-gray-100">FYB University</span>
+              <span className="font-bold text-gray-900 dark:text-gray-100">FYB Studio</span>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Empowering final year students with professional flyer designs.
+              Empowering you with professional flyer designs.
             </p>
           </div>
 
@@ -86,7 +86,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>&copy; {new Date().getFullYear()} FYB University. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} FYB Studio. All rights reserved.</p>
         </div>
       </div>
     </footer>

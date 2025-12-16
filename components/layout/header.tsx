@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
                 <span className="text-white font-bold text-lg">FYB</span>
               </div>
               <span className="font-bold text-xl text-gray-900 dark:text-gray-100">
-                FYB University
+                FYB Studio
               </span>
             </Link>
 

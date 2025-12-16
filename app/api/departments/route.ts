@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
       departments: names,
     })
   } catch (error: any) {
+    console.error('Failed to load departments:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to load departments' },
+      { success: false, error: 'We could not load departments right now. Please try again.' },
       { status: 500 }
     )
   }

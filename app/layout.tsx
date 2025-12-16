@@ -7,8 +7,8 @@ import { ConditionalFooter } from '@/components/layout/conditional-footer'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'FYB University - Flyer Design Platform',
-  description: 'Create professional flyer designs for final year students',
+  title: 'FYB Studio - Flyer Design Platform',
+  description: 'Create professional flyer designs for students and organizations',
 }
 
 export default function RootLayout({

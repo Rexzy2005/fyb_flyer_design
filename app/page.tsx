@@ -35,7 +35,7 @@ export default function HomePage() {
       {/* Features Section */}
       <section className="py-16">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-gray-100 mb-12">
-          Why Choose FYB University?
+          Why Choose FYB Studio?
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>

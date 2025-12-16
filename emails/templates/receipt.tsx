@@ -85,10 +85,10 @@ export function renderReceipt({ username, amount, reference, date, templateName 
           <tr>
             <td style="padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;">
               <p style="margin: 0 0 10px; font-size: 14px; color: #6b7280;">
-                Questions? Contact us at <a href="mailto:support@fybuniversity.com" style="color: #0ea5e9; text-decoration: none;">support@fybuniversity.com</a>
+                Questions? Contact us at <a href="mailto:support@fybstudio.com" style="color: #0ea5e9; text-decoration: none;">support@fybstudio.com</a>
               </p>
               <p style="margin: 20px 0 0; font-size: 12px; color: #9ca3af;">
-                © ${new Date().getFullYear()} FYB University. All rights reserved.
+                © ${new Date().getFullYear()} FYB Studio. All rights reserved.
               </p>
             </td>
           </tr>

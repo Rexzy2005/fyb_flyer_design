@@ -42,8 +42,9 @@ export async function POST(request: NextRequest) {
       try {
         await DepartmentService.validateAccessCode(templateId, department, accessCode)
       } catch (error: any) {
+        console.error('Invalid department access code:', error)
         return NextResponse.json(
-          { success: false, error: error.message || 'Invalid access code' },
+          { success: false, error: 'The access code you entered is not correct.' },
           { status: 403 }
         )
       }
@@ -109,13 +110,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Some of the information you entered is not valid. Please check and try again.' },
         { status: 400 }
       )
     }
 
+    console.error('Download initiation failed:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Download initiation failed' },
+      { success: false, error: 'We could not start the download. Please try again.' },
       { status: 500 }
     )
   }
