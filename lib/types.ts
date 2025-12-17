@@ -47,6 +47,8 @@ export interface TemplateField {
   label: string
   placeholder: string
   required: boolean
+  // Optional logical grouping for editor forms (e.g. "Personal Details", "Profile", "Socials")
+  section?: string
   position: {
     x: number
     y: number

@@ -1,5 +1,5 @@
 import type { User } from '@prisma/client'
-import { db } from './db'
+import { db, testDatabaseConnection } from './db'
 import { getSession } from './auth'
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -8,9 +8,20 @@ export async function getCurrentUser(): Promise<User | null> {
     return null
   }
 
-  return db.user.findUnique({
-    where: { id: session.userId },
-  })
+  try {
+    const isConnected = await testDatabaseConnection()
+    if (!isConnected) {
+      console.error('getCurrentUser: database not reachable')
+      return null
+    }
+
+    return await db.user.findUnique({
+      where: { id: session.userId },
+    })
+  } catch (error: any) {
+    console.error('getCurrentUser failed:', error?.message || error)
+    return null
+  }
 }
 
 

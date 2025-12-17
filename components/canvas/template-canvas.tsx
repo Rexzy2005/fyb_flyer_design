@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
 import { fabric } from 'fabric'
 import type { Template, TemplateField } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -12,12 +12,12 @@ interface TemplateCanvasProps {
   className?: string
 }
 
-export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
-  template,
-  formData,
-  isPreview = true,
-  className,
-}) => {
+export interface TemplateCanvasHandle {
+  exportToImage: (quality?: number) => Promise<string>
+}
+
+export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasProps>(
+  ({ template, formData, isPreview = true, className }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -32,6 +32,7 @@ export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
     })
 
     fabricCanvasRef.current = canvas
+    let disposed = false
 
     // Add watermark for preview
     if (isPreview) {
@@ -87,6 +88,7 @@ export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
       if (field.type === 'image') {
         if (value && typeof value === 'string') {
           fabric.Image.fromURL(value, (img) => {
+            if (disposed || !fabricCanvasRef.current) return
             img.set({
               left: field.position.x - 75,
               top: field.position.y - 75,
@@ -123,6 +125,8 @@ export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
     setIsLoading(false)
 
     return () => {
+      disposed = true
+      fabricCanvasRef.current = null
       canvas.dispose()
     }
   }, [template, formData, isPreview])
@@ -174,6 +178,9 @@ export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
     })
   }
 
+  useImperativeHandle(ref, () => ({
+    exportToImage,
+  }))
 
   return (
     <div className={cn('relative', className)}>
@@ -202,5 +209,5 @@ export const TemplateCanvas: React.FC<TemplateCanvasProps> = ({
       )}
     </div>
   )
-}
+})
 

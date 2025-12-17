@@ -1,19 +1,19 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTemplateStore } from '@/store/template-store'
 import { useAuthStore } from '@/store/auth-store'
 import { useDownloadStore } from '@/store/download-store'
-import { TemplateCanvas } from '@/components/canvas/template-canvas'
+import { TemplateCanvas, TemplateCanvasHandle } from '@/components/canvas/template-canvas'
 import { PaymentModal } from '@/components/payment/payment-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Lock, Download, Mail, CheckCircle } from 'lucide-react'
+import { Modal } from '@/components/ui/modal'
+import { Lock, Download, Mail, CheckCircle, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { fabric } from 'fabric'
 
 const DOWNLOAD_PRICE = 500 // NGN
 
@@ -40,8 +40,13 @@ export default function EditorPage() {
   const [unlockCode, setUnlockCode] = useState('')
   const [unlockError, setUnlockError] = useState('')
   const [emailSent, setEmailSent] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null)
+  const templateCanvasRef = useRef<TemplateCanvasHandle | null>(null)
+
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [showReadyModal, setShowReadyModal] = useState(false)
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState('')
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -65,115 +70,25 @@ export default function EditorPage() {
       department: user?.department || '',
     })
 
-    // Initialize canvas
-    if (canvasRef.current) {
-      const canvas = new fabric.Canvas(canvasRef.current, {
-        width: foundTemplate.canvasConfig.width,
-        height: foundTemplate.canvasConfig.height,
-        backgroundColor: foundTemplate.canvasConfig.backgroundColor,
-      })
-      fabricCanvasRef.current = canvas
-    }
-
     return () => {
-      if (fabricCanvasRef.current) {
-        fabricCanvasRef.current.dispose()
-      }
+      // no-op cleanup; TemplateCanvas handles its own disposal
     }
   }, [templateId, templates, isAuthenticated, router, selectTemplate, user])
 
-  // Update canvas when form data changes
-  useEffect(() => {
-    if (!fabricCanvasRef.current || !template) return
-
-    const canvas = fabricCanvasRef.current
-    canvas.clear()
-    canvas.backgroundColor = template.canvasConfig.backgroundColor
-
-    // Add preview watermarks
-    const watermark = new fabric.Text('PREVIEW ONLY', {
-      left: template.canvasConfig.width / 2,
-      top: template.canvasConfig.height / 2,
-      originX: 'center',
-      originY: 'center',
-      fontSize: 60,
-      fontFamily: 'Arial',
-      fill: 'rgba(255, 0, 0, 0.2)',
-      angle: -45,
-      selectable: false,
-      evented: false,
-    })
-    canvas.add(watermark)
-    canvas.sendToBack(watermark)
-
-    if (formData.username) {
-      const userWatermark = new fabric.Text(`User: ${formData.username}`, {
-        left: 20,
-        top: template.canvasConfig.height - 30,
-        fontSize: 14,
-        fontFamily: 'Arial',
-        fill: 'rgba(0, 0, 0, 0.3)',
-        selectable: false,
-        evented: false,
-      })
-      canvas.add(userWatermark)
-    }
-
-    if (formData.email) {
-      const emailWatermark = new fabric.Text(`Email: ${formData.email}`, {
-        left: 20,
-        top: template.canvasConfig.height - 50,
-        fontSize: 14,
-        fontFamily: 'Arial',
-        fill: 'rgba(0, 0, 0, 0.3)',
-        selectable: false,
-        evented: false,
-      })
-      canvas.add(emailWatermark)
-    }
-
-    // Render template fields
+  const sectionGroups = useMemo(() => {
+    if (!template) return []
+    const groups: { name: string; fields: any[] }[] = []
+    const map: Record<string, any[]> = {}
     template.fields.forEach((field: any) => {
-      const value = formData[field.name]
-      if (!value && field.required) return
-
-      if (field.type === 'image') {
-        if (value && typeof value === 'string') {
-          fabric.Image.fromURL(value, (img) => {
-            img.set({
-              left: field.position.x - 75,
-              top: field.position.y - 75,
-              originX: 'center',
-              originY: 'center',
-              scaleX: 150 / (img.width || 150),
-              scaleY: 150 / (img.height || 150),
-              selectable: false,
-              evented: false,
-            })
-            canvas.add(img)
-            canvas.renderAll()
-          })
-        }
-      } else if (field.type === 'text' || field.type === 'date' || field.type === 'number') {
-        const text = new fabric.Text(value?.toString() || field.placeholder, {
-          left: field.position.x,
-          top: field.position.y,
-          originX: 'center',
-          originY: 'center',
-          fontSize: field.style.fontSize || 24,
-          fontFamily: field.style.fontFamily || 'Arial',
-          fill: field.style.color || '#000000',
-          fontWeight: field.style.fontWeight || 'normal',
-          textAlign: field.style.textAlign || 'center',
-          selectable: false,
-          evented: false,
-        })
-        canvas.add(text)
+      const section = field.section || 'Details'
+      if (!map[section]) {
+        map[section] = []
+        groups.push({ name: section, fields: map[section] })
       }
+      map[section].push(field)
     })
-
-    canvas.renderAll()
-  }, [template, formData])
+    return groups
+  }, [template])
 
   const handleUnlock = async () => {
     if (!unlockCode) {
@@ -204,7 +119,7 @@ export default function EditorPage() {
       return
     }
 
-    await performDownload()
+    await startGenerate()
   }
 
   const handlePaymentSuccess = async () => {
@@ -212,57 +127,81 @@ export default function EditorPage() {
 
     const payment = createPayment(user.id, templateId, DOWNLOAD_PRICE)
     completePayment(payment.id)
-    await performDownload()
+    await startGenerate()
   }
 
-  const performDownload = async () => {
-    if (!fabricCanvasRef.current || !template || !user) return
+  const startGenerate = async () => {
+    if (!templateCanvasRef.current || !template || !user) return
+    setIsGenerating(true)
+    setShowReadyModal(false)
+    setGeneratedImage(null)
+    setDownloadError('')
 
-    // Export high-quality image (remove watermarks)
-    const canvas = fabricCanvasRef.current
-    const objects = canvas.getObjects()
-    const watermarks = objects.filter(
-      (obj: any) =>
-        obj.text === 'PREVIEW ONLY' ||
-        (obj.text && obj.text.startsWith('User:')) ||
-        (obj.text && obj.text.startsWith('Email:'))
-    )
-    watermarks.forEach((wm) => canvas.remove(wm))
+    const dataURL = await templateCanvasRef.current.exportToImage(2)
+    setIsGenerating(false)
 
-    const dataURL = canvas.toDataURL({
-      format: 'png',
-      quality: 1,
-      multiplier: 2, // High quality
-    })
+    if (!dataURL) {
+      setDownloadError('We could not generate your design. Please try again.')
+      return
+    }
 
-    // Restore watermarks for preview
-    watermarks.forEach((wm) => canvas.add(wm))
-    canvas.renderAll()
+    setGeneratedImage(dataURL)
+    setShowReadyModal(true)
+  }
 
-    // Create download
-    const download = addDownload({
+  const handleReadyDownload = async () => {
+    if (!generatedImage || !template || !user) return
+    setDownloadError('')
+
+    let finalUrl = generatedImage
+
+    try {
+      // Call backend to store download, upload to Cloudinary and send email
+      const res = await fetch('/api/downloads/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: template.id,
+          imageData: generatedImage,
+        }),
+      })
+      const result = await res.json()
+
+      if (res.ok && result.success && result.download?.downloadUrl) {
+        finalUrl = result.download.downloadUrl
+        setEmailSent(true)
+        setTimeout(() => setEmailSent(false), 5000)
+      } else {
+        setDownloadError(
+          result.error ||
+            'We could not finish your download. Please try again in a moment.'
+        )
+      }
+    } catch (err: any) {
+      console.error('Download completion request failed:', err)
+      setDownloadError('Network error while finishing your download. Please try again.')
+    }
+
+    // Also keep local history for dashboard widgets
+    addDownload({
       userId: user.id,
       templateId: template.id,
       templateName: template.name,
-      downloadUrl: dataURL,
+      downloadUrl: finalUrl,
       paid: true,
-      emailSent: false,
+      emailSent: true,
     })
 
-    // Increment template usage
+    // Increment template usage locally
     incrementUsage(templateId)
 
-    // Simulate email sending
-    setTimeout(() => {
-      setEmailSent(true)
-      setTimeout(() => setEmailSent(false), 5000)
-    }, 1000)
-
-    // Trigger download
+    // Trigger browser download from final URL
     const link = document.createElement('a')
     link.download = `${template.name}-${Date.now()}.png`
-    link.href = dataURL
+    link.href = finalUrl
     link.click()
+
+    setShowReadyModal(false)
   }
 
   const handleImageUpload = (fieldName: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,39 +280,48 @@ export default function EditorPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Canvas Preview */}
-        <div className="sticky top-24 h-fit">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Canvas Preview (left on desktop) */}
+        <div className="sticky top-24 h-fit order-1 lg:col-span-5">
           <Card>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Preview</h2>
               <Badge variant="warning">Preview Only</Badge>
             </div>
-            <div className="relative">
-              <canvas
-                ref={canvasRef}
-                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg no-select disable-context-menu"
-                style={{ maxWidth: '100%', height: 'auto' }}
+            <div className="flex justify-center pb-4">
+              <TemplateCanvas
+                ref={templateCanvasRef}
+                template={template}
+                formData={formData}
+                isPreview
+                className="w-full max-w-[480px] md:max-w-[520px]"
               />
-              <div className="absolute top-2 right-2">
-                <div className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
-                  PREVIEW
-                </div>
-              </div>
             </div>
           </Card>
         </div>
 
-        {/* Form */}
-        <div>
+        {/* Form (right on desktop) */}
+        <div className="order-2 lg:col-span-7">
           <Card>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
               Customize Template
             </h2>
 
-            <div className="space-y-6">
-              {template.fields.map((field: any) => (
-                <div key={field.id}>
+            <div className="space-y-8">
+              {sectionGroups.length > 0 && (
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Step {currentSectionIndex + 1} of {sectionGroups.length}
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {sectionGroups[currentSectionIndex].name}
+                  </p>
+                </div>
+              )}
+
+              {sectionGroups.length > 0 &&
+                sectionGroups[currentSectionIndex].fields.map((field: any) => (
+                  <div key={field.id}>
                   {field.type === 'image' ? (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -420,8 +368,8 @@ export default function EditorPage() {
                       required={field.required}
                     />
                   )}
-                </div>
-              ))}
+                    </div>
+                  ))}
 
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4">
@@ -448,15 +396,54 @@ export default function EditorPage() {
                   </div>
                 )}
 
-                <Button
-                  onClick={handleDownload}
-                  className="w-full"
-                  size="lg"
-                  disabled={!template.fields.every((f: any) => !f.required || formData[f.name])}
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  {canDownloadFree ? 'Download Free' : `Download (₦${DOWNLOAD_PRICE})`}
-                </Button>
+                <div className="flex items-center justify-between gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={currentSectionIndex === 0}
+                    onClick={() => setCurrentSectionIndex((prev) => Math.max(prev - 1, 0))}
+                  >
+                    Back
+                  </Button>
+                  {currentSectionIndex < sectionGroups.length - 1 ? (
+                    <Button
+                      type="button"
+                      className="flex-1"
+                      onClick={() =>
+                        setCurrentSectionIndex((prev) =>
+                          Math.min(prev + 1, Math.max(sectionGroups.length - 1, 0))
+                        )
+                      }
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleDownload}
+                      className="flex-1"
+                      size="lg"
+                      disabled={
+                        isGenerating ||
+                        !template.fields.every((f: any) => !f.required || formData[f.name])
+                      }
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-5 h-5 mr-2" />
+                          {canDownloadFree
+                            ? 'Generate Design (Free)'
+                            : `Generate Design (₦${DOWNLOAD_PRICE})`}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </Card>
@@ -470,6 +457,50 @@ export default function EditorPage() {
         templateName={template.name}
         onSuccess={handlePaymentSuccess}
       />
+
+      <Modal
+        isOpen={showReadyModal}
+        onClose={() => !isGenerating && setShowReadyModal(false)}
+        title="Your design is ready"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            We’ve finished generating your design. Click the button below to download it and we’ll
+            also send a copy to your email.
+          </p>
+          {generatedImage && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden max-h-72 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={generatedImage}
+                alt="Generated design preview"
+                className="max-h-72 w-auto object-contain"
+              />
+            </div>
+          )}
+
+          {downloadError && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-600 dark:text-red-400">{downloadError}</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowReadyModal(false)}
+              disabled={isGenerating}
+            >
+              Close
+            </Button>
+            <Button onClick={handleReadyDownload} disabled={isGenerating}>
+              <Download className="w-4 h-4 mr-2" />
+              Download design
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

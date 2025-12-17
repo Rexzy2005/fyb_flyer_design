@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { UserService } from '@/services/user.service'
 import { setSession } from '@/lib/auth'
+import { sendEmail } from '@/lib/mailer'
+import { renderWelcomeEmail } from '@/emails/templates/welcome'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +25,18 @@ export async function POST(request: NextRequest) {
       email: user.email,
       role: user.role,
     })
+
+    // Send welcome email (non-blocking for user)
+    try {
+      const html = renderWelcomeEmail({ username: user.username })
+      await sendEmail({
+        to: user.email,
+        subject: 'Welcome to FYB Studio 🎉',
+        html,
+      })
+    } catch (err: any) {
+      console.error('Failed to send welcome email:', err?.message || err)
+    }
 
     return NextResponse.json({
       success: true,
