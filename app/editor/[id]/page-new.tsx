@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Lock, Download, Mail, CheckCircle, Loader2, ChevronRight, ChevronLeft, Zap } from 'lucide-react'
 
-const DOWNLOAD_PRICE = 500
+const DOWNLOAD_PRICE = 500 // NGN
 
 export default function EditorPage() {
   const router = useRouter()
@@ -334,16 +334,14 @@ export default function EditorPage() {
                 Live Preview
               </h2>
             </div>
-            <div className="p-6 flex justify-center items-center bg-gray-50 dark:bg-gray-800/50 min-h-[350px] overflow-hidden">
-              <div className="w-[280px] h-[320px] flex justify-center items-center overflow-hidden">
-                <TemplateCanvas
-                  ref={templateCanvasRef}
-                  template={template}
-                  formData={formData}
-                  isPreview
-                  className="object-scale-down"
-                />
-              </div>
+            <div className="p-6 flex justify-center bg-gray-50 dark:bg-gray-800/50">
+              <TemplateCanvas
+                ref={templateCanvasRef}
+                template={template}
+                formData={formData}
+                isPreview
+                className="w-full max-w-[300px]"
+              />
             </div>
           </div>
 
@@ -377,16 +375,14 @@ export default function EditorPage() {
                 </h2>
               </div>
 
-              <div className="p-8 flex justify-center items-center bg-gray-50 dark:bg-gray-800/50 min-h-[500px] overflow-hidden">
-                <div className="w-full max-w-[360px] max-h-[440px] flex justify-center items-center overflow-hidden">
-                  <TemplateCanvas
-                    ref={templateCanvasRef}
-                    template={template}
-                    formData={formData}
-                    isPreview
-                    className="object-scale-down"
-                  />
-                </div>
+              <div className="p-8 flex justify-center bg-gray-50 dark:bg-gray-800/50 min-h-[500px]">
+                <TemplateCanvas
+                  ref={templateCanvasRef}
+                  template={template}
+                  formData={formData}
+                  isPreview
+                  className="w-full max-w-[380px]"
+                />
               </div>
 
               <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
@@ -419,6 +415,7 @@ export default function EditorPage() {
         </div>
       </div>
 
+      {/* Modals */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
@@ -447,6 +444,7 @@ export default function EditorPage() {
               Your design is generated. Download it now and we'll send a copy to your email.
             </p>
           </div>
+
           {generatedImage && (
             <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -574,7 +572,7 @@ function FormCard({
           <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-300"
-              style={{ width: `${requiredFields > 0 ? (completedRequired / requiredFields) * 100 : 0}%` }}
+              style={{ width: `${(completedRequired / requiredFields) * 100}%` }}
             ></div>
           </div>
         </div>

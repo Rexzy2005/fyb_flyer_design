@@ -90,6 +90,13 @@ export async function POST(request: NextRequest) {
       downloadUrl: uploadResult.secure_url,
     })
 
+    if (!download) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to create download record' },
+        { status: 500 }
+      )
+    }
+
     // Increment template usage
     await TemplateService.incrementUsage(templateId)
 

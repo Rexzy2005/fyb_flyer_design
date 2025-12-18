@@ -23,6 +23,7 @@ export const mockTemplates: Template[] = [
           color: '#1a1a1a',
           fontWeight: 'bold',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -39,6 +40,7 @@ export const mockTemplates: Template[] = [
           color: '#4a5568',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -49,7 +51,10 @@ export const mockTemplates: Template[] = [
         placeholder: 'Upload your photo',
         required: true,
         position: { x: 400, y: 100 },
-        style: {},
+        style: {
+          maxWidth: 180,
+          maxHeight: 180,
+        },
       },
       {
         id: 'f4',
@@ -65,6 +70,7 @@ export const mockTemplates: Template[] = [
           color: '#718096',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 600,
         },
       },
     ],
@@ -96,6 +102,7 @@ export const mockTemplates: Template[] = [
           color: '#2d3748',
           fontWeight: 'bold',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -112,6 +119,7 @@ export const mockTemplates: Template[] = [
           color: '#4a5568',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -122,7 +130,10 @@ export const mockTemplates: Template[] = [
         placeholder: 'Upload your photo',
         required: true,
         position: { x: 400, y: 120 },
-        style: {},
+        style: {
+          maxWidth: 180,
+          maxHeight: 180,
+        },
       },
       {
         id: 'f4',
@@ -138,6 +149,7 @@ export const mockTemplates: Template[] = [
           color: '#718096',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 600,
         },
       },
     ],
@@ -171,6 +183,7 @@ export const mockTemplates: Template[] = [
           color: '#1a202c',
           fontWeight: 'bold',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -187,6 +200,7 @@ export const mockTemplates: Template[] = [
           color: '#2d3748',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 700,
         },
       },
       {
@@ -197,7 +211,10 @@ export const mockTemplates: Template[] = [
         placeholder: 'Upload your photo',
         required: true,
         position: { x: 400, y: 100 },
-        style: {},
+        style: {
+          maxWidth: 160,
+          maxHeight: 160,
+        },
       },
       {
         id: 'f4',
@@ -213,6 +230,7 @@ export const mockTemplates: Template[] = [
           color: '#4a5568',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 680,
         },
       },
       {
@@ -229,6 +247,7 @@ export const mockTemplates: Template[] = [
           color: '#718096',
           fontWeight: 'normal',
           textAlign: 'center',
+          maxWidth: 600,
         },
       },
     ],

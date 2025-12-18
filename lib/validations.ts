@@ -51,7 +51,7 @@ export const initiateDownloadSchema = z.object({
 })
 
 export const initiatePaymentSchema = z.object({
-  templateId: z.string().uuid('Invalid template ID'),
+  templateId: z.string().min(1, 'Template ID is required'),
   amount: z.number().positive('Amount must be positive'),
 })
 

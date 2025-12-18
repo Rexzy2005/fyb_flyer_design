@@ -72,25 +72,11 @@ export interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<void> {
-  // In development, if email is not configured, log to console
+  // If email is not configured, show warning
   if (!transporter || !isEmailConfigured()) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('\n📧 ===== EMAIL (DEVELOPMENT MODE - NOT SENT) =====')
-      console.log('To:', options.to)
-      console.log('Subject:', options.subject)
-      console.log('HTML:', options.html)
-      console.log('==========================================\n')
-      
-      // Extract OTP from HTML for easy testing
-      const otpMatch = options.html.match(/>(\d{6})</)
-      if (otpMatch) {
-        console.log(`🔑 OTP CODE: ${otpMatch[1]}`)
-      }
-      
-      return // Don't throw error in development
-    } else {
-      throw new Error('Email service not configured. Please set SMTP credentials.')
-    }
+    console.warn('⚠️ Email service not configured. Email will not be sent.')
+    console.log('Please set SMTP_HOST, SMTP_USER, and SMTP_PASS in .env')
+    throw new Error('Email service not configured')
   }
 
   try {

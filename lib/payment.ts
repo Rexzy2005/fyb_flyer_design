@@ -1,9 +1,15 @@
-// Payment service - Currently simulated, ready for Paystack integration
+// Paystack payment integration
+import axios from 'axios'
+import { getCurrentUser } from './current-user'
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
+const PAYSTACK_BASE_URL = 'https://api.paystack.co'
 
 export interface PaymentInitiateRequest {
   userId: string
   templateId: string
   amount: number
+  userEmail?: string
 }
 
 export interface PaymentInitiateResponse {
@@ -19,91 +25,83 @@ export interface PaymentVerifyResponse {
 }
 
 /**
- * Simulated payment initiation
- * In production, this would call Paystack API
+ * Initiate payment with Paystack
  */
 export async function initiatePayment(
   request: PaymentInitiateRequest
 ): Promise<PaymentInitiateResponse> {
-  // Generate fake reference
-  const reference = `FYB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  if (!PAYSTACK_SECRET_KEY) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured')
+  }
 
-  // Simulated response
-  return {
-    reference,
-    authorizationUrl: `${process.env.APP_URL || 'http://localhost:3000'}/payment/verify?reference=${reference}`,
-    accessCode: `access_${reference}`,
+  try {
+    const response = await axios.post(
+      `${PAYSTACK_BASE_URL}/transaction/initialize`,
+      {
+        email: request.userEmail || 'customer@example.com',
+        amount: request.amount * 100, // Convert to kobo
+        reference: `FYB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        metadata: {
+          userId: request.userId,
+          templateId: request.templateId,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    if (!response.data.status) {
+      throw new Error('Failed to initialize payment with Paystack')
+    }
+
+    return {
+      reference: response.data.data.reference,
+      authorizationUrl: response.data.data.authorization_url,
+      accessCode: response.data.data.access_code,
+    }
+  } catch (error: any) {
+    console.error('Paystack payment initiation error:', error.response?.data || error.message)
+    throw new Error(`Payment initiation failed: ${error.message}`)
   }
 }
 
 /**
- * Simulated payment verification
- * In production, this would verify with Paystack API
+ * Verify payment with Paystack
  */
 export async function verifyPayment(reference: string): Promise<PaymentVerifyResponse> {
-  // Simulated verification - always succeeds for now
-  // In production: await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {...})
-
-  return {
-    status: 'success',
-    reference,
-    amount: 0, // Will be set from database
+  if (!PAYSTACK_SECRET_KEY) {
+    throw new Error('PAYSTACK_SECRET_KEY is not configured')
   }
-}
 
-/**
- * Production Paystack integration (commented for future use)
- */
-/*
-import axios from 'axios'
+  try {
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        },
+      }
+    )
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
-const PAYSTACK_BASE_URL = 'https://api.paystack.co'
-
-export async function initiatePaymentPaystack(
-  request: PaymentInitiateRequest
-): Promise<PaymentInitiateResponse> {
-  const response = await axios.post(
-    `${PAYSTACK_BASE_URL}/transaction/initialize`,
-    {
-      email: request.userEmail,
-      amount: request.amount * 100, // Convert to kobo
-      reference: `FYB_${Date.now()}`,
-      metadata: {
-        userId: request.userId,
-        templateId: request.templateId,
-      },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
+    if (!response.data.status) {
+      throw new Error('Failed to verify payment with Paystack')
     }
-  )
 
-  return {
-    reference: response.data.data.reference,
-    authorizationUrl: response.data.data.authorization_url,
-    accessCode: response.data.data.access_code,
-  }
-}
+    const data = response.data.data
+    const status = data.status === 'success' ? 'success' : 'failed'
 
-export async function verifyPaymentPaystack(reference: string): Promise<PaymentVerifyResponse> {
-  const response = await axios.get(
-    `${PAYSTACK_BASE_URL}/transaction/verify/${reference}`,
-    {
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-      },
+    return {
+      status,
+      reference: data.reference,
+      amount: data.amount / 100, // Convert from kobo to naira
     }
-  )
-
-  return {
-    status: response.data.data.status === 'success' ? 'success' : 'failed',
-    reference: response.data.data.reference,
-    amount: response.data.data.amount / 100, // Convert from kobo
+  } catch (error: any) {
+    console.error('Paystack payment verification error:', error.response?.data || error.message)
+    throw new Error(`Payment verification failed: ${error.message}`)
   }
 }
-*/
 

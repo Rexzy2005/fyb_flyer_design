@@ -59,6 +59,8 @@ export interface TemplateField {
     color?: string
     fontWeight?: string
     textAlign?: 'left' | 'center' | 'right'
+    maxWidth?: number
+    maxHeight?: number
   }
 }
 

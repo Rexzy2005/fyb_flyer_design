@@ -1,20 +1,26 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { CreditCard, CheckCircle, XCircle } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { simulateDelay } from '@/lib/utils'
 
 interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
   amount: number
   templateName: string
-  onSuccess: () => void
+  templateId: string
+  userEmail?: string
+  onSuccess: (reference: string) => void
+}
+
+declare global {
+  interface Window {
+    PaystackPop: any
+  }
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -22,76 +28,93 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   amount,
   templateName,
+  templateId,
+  userEmail,
   onSuccess,
 }) => {
   const [step, setStep] = useState<'form' | 'processing' | 'success' | 'failed'>('form')
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardName, setCardName] = useState('')
-  const [expiry, setExpiry] = useState('')
-  const [cvv, setCvv] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Load Paystack script
+  useEffect(() => {
+    if (!window.PaystackPop) {
+      const script = document.createElement('script')
+      script.src = 'https://js.paystack.co/v1/inline.js'
+      script.async = true
+      document.body.appendChild(script)
+    }
+  }, [])
+
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setLoading(true)
 
-    // Basic validation
-    if (!cardNumber || !cardName || !expiry || !cvv) {
-      setError('Please fill in all fields')
-      return
-    }
+    try {
+      // Validate templateId format
+      if (!templateId || templateId.length === 0) {
+        throw new Error('Template ID is missing')
+      }
 
-    if (cardNumber.replace(/\s/g, '').length !== 16) {
-      setError('Card number must be 16 digits')
-      return
-    }
+      console.log('Initiating payment with:', { templateId, amount })
+      
+      // Call backend to initiate payment
+      const response = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          templateId: String(templateId).trim(),
+          amount: Number(amount),
+        }),
+      })
 
-    if (cvv.length !== 3) {
-      setError('CVV must be 3 digits')
-      return
-    }
+      const data = await response.json()
+      console.log('Payment response:', data)
 
-    // Simulate payment processing
-    setStep('processing')
-    await simulateDelay(2000)
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to initiate payment')
+      }
 
-    // Mock payment - 80% success rate
-    const success = Math.random() > 0.2
+      console.log('Payment initiated successfully, reference:', data.reference)
+      setStep('processing')
 
-    if (success) {
-      setStep('success')
-      await simulateDelay(1500)
-      onSuccess()
-      handleClose()
-    } else {
+      // Use Paystack Pop with correct API
+      if (window.PaystackPop) {
+        const handler = window.PaystackPop.setup({
+          key: publicKey,
+          email: userEmail || 'user@example.com',
+          amount: amount * 100, // Paystack uses kobo (cents)
+          ref: data.reference,
+          onClose: () => {
+            console.log('Payment window closed')
+            setStep('form')
+          },
+          onSuccess: (response: any) => {
+            console.log('Paystack payment successful:', response)
+            setStep('success')
+            // Call the parent success handler immediately with the reference
+            onSuccess(data.reference)
+          },
+        })
+        handler.openIframe()
+      } else {
+        throw new Error('Paystack library not loaded')
+      }
+    } catch (err: any) {
+      console.error('Payment error:', err)
+      setError(err.message || 'Payment initiation failed')
       setStep('failed')
-      setError('Payment failed. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleClose = () => {
     setStep('form')
-    setCardNumber('')
-    setCardName('')
-    setExpiry('')
-    setCvv('')
     setError('')
     onClose()
-  }
-
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
-    const matches = v.match(/\d{4,16}/g)
-    const match = (matches && matches[0]) || ''
-    const parts = []
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4))
-    }
-    if (parts.length) {
-      return parts.join(' ')
-    } else {
-      return v
-    }
   }
 
   return (
@@ -99,7 +122,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       {step === 'processing' && (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Processing your payment...</p>
+          <p className="text-gray-600 dark:text-gray-400">Processing your payment with Paystack...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+            Test Card: 4084084084084081 | Expiry: 12/25 | CVV: 123
+          </p>
         </div>
       )}
 
@@ -141,77 +167,32 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           </Card>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Card Number
-              </label>
-              <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                  placeholder="1234 5678 9012 3456"
-                  maxLength={19}
-                  className="pl-10"
-                  required
-                />
-              </div>
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 mb-4">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
+          )}
 
-            <Input
-              label="Cardholder Name"
-              type="text"
-              value={cardName}
-              onChange={(e) => setCardName(e.target.value)}
-              placeholder="John Doe"
-              required
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Expiry Date"
-                type="text"
-                value={expiry}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '')
-                  if (v.length <= 4) {
-                    setExpiry(v.length === 4 ? `${v.slice(0, 2)}/${v.slice(2)}` : v)
-                  }
-                }}
-                placeholder="MM/YY"
-                maxLength={5}
-                required
-              />
-              <Input
-                label="CVV"
-                type="text"
-                value={cvv}
-                onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                placeholder="123"
-                maxLength={3}
-                required
-              />
+          <form onSubmit={handlePayment} className="space-y-4">
+            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-2">Test Card Details:</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">Card: 4084084084084081</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">Expiry: 12/25 (any future date)</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">CVV: 123 (any 3 digits)</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300">OTP: 123456 (when prompted)</p>
             </div>
-
-            {error && (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
 
             <div className="flex gap-3 pt-4">
               <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1">
-                Pay {formatCurrency(amount)}
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading ? 'Processing...' : `Pay ${formatCurrency(amount)}`}
               </Button>
             </div>
 
             <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-              This is a simulated payment. No real charges will be made.
+              You will be redirected to Paystack for secure payment
             </p>
           </form>
         </div>

@@ -41,7 +41,7 @@ export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasPro
         top: template.canvasConfig.height / 2,
         originX: 'center',
         originY: 'center',
-        fontSize: 60,
+        fontSize: 32,
         fontFamily: 'Arial',
         fill: 'rgba(255, 0, 0, 0.2)',
         angle: -45,
@@ -89,21 +89,40 @@ export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasPro
         if (value && typeof value === 'string') {
           fabric.Image.fromURL(value, (img) => {
             if (disposed || !fabricCanvasRef.current) return
+            
+            // Get image dimensions
+            const imgWidth = img.width || 150
+            const imgHeight = img.height || 150
+            const maxWidth = field.style.maxWidth || 150
+            const maxHeight = field.style.maxHeight || 150
+            
+            // Calculate scale to fit within bounds while maintaining aspect ratio
+            const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight)
+            
             img.set({
-              left: field.position.x - 75,
-              top: field.position.y - 75,
+              left: field.position.x,
+              top: field.position.y,
               originX: 'center',
               originY: 'center',
-              scaleX: 150 / (img.width || 150),
-              scaleY: 150 / (img.height || 150),
+              scaleX: scale,
+              scaleY: scale,
               selectable: false,
               evented: false,
+              clipPath: new fabric.Rect({
+                left: -(maxWidth / 2),
+                top: -(maxHeight / 2),
+                width: maxWidth,
+                height: maxHeight,
+                originX: 'center',
+                originY: 'center',
+              }),
             })
             canvas.add(img)
             canvas.renderAll()
           })
         }
       } else if (field.type === 'text' || field.type === 'date' || field.type === 'number') {
+        const maxWidth = field.style.maxWidth || 300
         const text = new fabric.Text(value?.toString() || field.placeholder, {
           left: field.position.x,
           top: field.position.y,
@@ -116,6 +135,7 @@ export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasPro
           textAlign: field.style.textAlign || 'center',
           selectable: false,
           evented: false,
+          width: maxWidth,
         })
         canvas.add(text)
       }
@@ -201,8 +221,8 @@ export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasPro
         }}
       />
       {isPreview && (
-        <div className="absolute top-2 right-2">
-          <div className="bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
+        <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
+          <div className="bg-red-500 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded text-xs font-semibold">
             PREVIEW
           </div>
         </div>
@@ -211,3 +231,4 @@ export const TemplateCanvas = forwardRef<TemplateCanvasHandle, TemplateCanvasPro
   )
 })
 
+TemplateCanvas.displayName = 'TemplateCanvas'

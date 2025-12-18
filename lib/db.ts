@@ -7,6 +7,14 @@ export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    // Configure connection pool
+    ...(process.env.NODE_ENV === 'development' && {
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+    }),
   })
 
 if (process.env.NODE_ENV !== 'production') {
@@ -25,3 +33,7 @@ export async function testDatabaseConnection(): Promise<boolean> {
   }
 }
 
+// Gracefully disconnect on shutdown
+process.on('SIGTERM', async () => {
+  await db.$disconnect()
+})

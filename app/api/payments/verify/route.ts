@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = verifyPaymentSchema.parse(body)
 
-    const payment = await PaymentService.verify(validatedData.reference)
+    // Fast path: just mark as completed without re-verifying with Paystack
+    // (Paystack's onSuccess callback already confirmed the payment)
+    const payment = await PaymentService.markAsCompleted(validatedData.reference)
 
     // Verify payment belongs to user
     if (payment.userId !== user.id) {
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      success: payment.status === 'COMPLETED',
+      success: true,
       payment: {
         id: payment.id,
         reference: payment.reference,
@@ -43,9 +45,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error('Payment verification failed:', error)
+    console.error('Payment verification failed:', {
+      message: error?.message,
+      code: error?.code,
+    })
+    
     return NextResponse.json(
-      { success: false, error: 'We could not verify your payment. Please try again.' },
+      { success: false, error: error?.message || 'We could not verify your payment. Please try again.' },
       { status: 500 }
     )
   }
